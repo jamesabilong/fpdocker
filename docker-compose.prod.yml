@@ -21,6 +21,11 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
     depends_on:
       - postgres
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres:
     image: postgres:14
@@ -42,6 +47,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     build:
@@ -52,7 +62,12 @@ services:
     ports:
       - "${NGINX_PORT}:80"
     networks:
-      - node-network
+      - node-networ
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"k
     depends_on:
       - backend
     environment:

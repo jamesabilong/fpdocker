@@ -19,6 +19,11 @@ services:
     stdin_open: true
     tty: true
     command: sh -c "npm install && npm run dev"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
@@ -46,6 +51,11 @@ services:
     depends_on:
       - postgres
     command: sh -c "npm install && npm run dev"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres:
     image: postgres:14
@@ -67,6 +77,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   node-network:
