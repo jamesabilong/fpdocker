@@ -19,8 +19,9 @@ ENV NODE_ENV=production
 # --- FRONTEND PRODUCTION IMAGE ---
 FROM nginx:alpine AS frontend-prod
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
-COPY fpdocker/nginx.prod.conf /etc/nginx/nginx.conf
-EXPOSE 80
+# Copy SSL-enabled nginx config (will work with or without SSL certs)
+COPY fpdocker/nginx.prod.ssl.conf /etc/nginx/nginx.conf
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
 
 # --- BACKEND PRODUCTION IMAGE ---
