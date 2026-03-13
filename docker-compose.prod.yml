@@ -58,6 +58,8 @@ services:
       context: ..
       dockerfile: ./fpdocker/Dockerfile.prod
       target: frontend-prod
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     container_name: fresh-price-nginx
     ports:
       - "${NGINX_PORT}:80"

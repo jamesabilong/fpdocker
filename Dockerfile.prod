@@ -4,16 +4,17 @@ WORKDIR /app
 COPY fresh-price-front/package*.json ./
 RUN npm ci
 COPY fresh-price-front/ ./
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # --- BACKEND BUILD STAGE ---
 FROM node:20-alpine AS backend-build
 WORKDIR /app
 COPY fresh-price-backend/package*.json ./
-RUN npm ci
+RUN npm ci --only=production
 COPY fresh-price-backend/ ./
 ENV NODE_ENV=production
-RUN npm run build
 
 # --- FRONTEND PRODUCTION IMAGE ---
 FROM nginx:alpine AS frontend-prod
