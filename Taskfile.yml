@@ -1,0 +1,96 @@
+version: "3"
+
+vars:
+  ENV_MODE:
+    sh: |
+      if [ -n "${ENV_MODE}" ]; then
+        echo "${ENV_MODE}"
+      elif [ -n "${APP_ENV}" ]; then
+        echo "${APP_ENV}"
+      elif [ -n "${NODE_ENV}" ]; then
+        echo "${NODE_ENV}"
+      else
+        echo "dev"
+      fi
+  COMPOSE_FILE:
+    sh: |
+      case "${ENV_MODE:-${APP_ENV:-${NODE_ENV:-dev}}}" in
+        prod|production)
+          echo "docker-compose.prod.yml"
+          ;;
+        *)
+          echo "docker-compose.yml"
+          ;;
+      esac
+  COMPOSE_CMD: docker compose -f {{.COMPOSE_FILE}} --env-file .env
+
+tasks:
+  env:
+    desc: Show detected environment mode and compose file
+    cmds:
+      - echo "ENV_MODE={{.ENV_MODE}} COMPOSE_FILE={{.COMPOSE_FILE}}"
+
+  backend:
+    desc: Open a shell in the backend container (auto dev/prod)
+    cmds:
+      - "{{.COMPOSE_CMD}} exec -it backend sh"
+
+  nginx:
+    desc: Open a shell in the nginx container (auto dev/prod)
+    cmds:
+      - "{{.COMPOSE_CMD}} exec -it nginx sh"
+
+  db:
+    desc: Open a shell in the postgres container (auto dev/prod)
+    cmds:
+      - "{{.COMPOSE_CMD}} exec -it postgres sh"
+
+  pull:
+    desc: Pull latest upstream images referenced by active compose
+    cmds:
+      - "{{.COMPOSE_CMD}} pull"
+
+  build:
+    desc: Rebuild active environment services without cache
+    cmds:
+      - "{{.COMPOSE_CMD}} build --pull --no-cache --force-rm"
+
+  up:
+    desc: Start active environment services in detached mode
+    cmds:
+      - "{{.COMPOSE_CMD}} up -d --remove-orphans"
+
+  down:
+    desc: Stop active environment services
+    cmds:
+      - "{{.COMPOSE_CMD}} down --remove-orphans"
+
+  restart:
+    desc: Restart active environment stack
+    cmds:
+      - task: down
+      - task: up
+      - task: ps
+
+  logs:
+    desc: Follow active environment service logs
+    cmds:
+      - "{{.COMPOSE_CMD}} logs -f --tail=200"
+
+  ps:
+    desc: Show active environment service status
+    cmds:
+      - "{{.COMPOSE_CMD}} ps"
+
+  config:
+    desc: Validate rendered active environment compose config
+    cmds:
+      - "{{.COMPOSE_CMD}} config"
+
+  deploy:
+    desc: CI/CD friendly deploy for active environment (pull, build, up, status)
+    cmds:
+      - task: pull
+      - task: build
+      - task: up
+      - task: ps
