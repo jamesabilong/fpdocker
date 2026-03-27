@@ -22,7 +22,24 @@ vars:
           echo "docker-compose.yml"
           ;;
       esac
-  COMPOSE_CMD: docker compose -f {{.COMPOSE_FILE}} --env-file .env
+  COMPOSE_BIN:
+    sh: |
+      if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+      elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+      else
+        echo "ERROR: neither 'docker compose' nor 'docker-compose' is available in PATH" >&2
+        exit 1
+      fi
+  COMPOSE_ENV_FILE_FLAG:
+    sh: |
+      if [ "{{.COMPOSE_BIN}}" = "docker compose" ]; then
+        echo "--env-file .env"
+      elif docker-compose --help 2>/dev/null | grep -q -- '--env-file'; then
+        echo "--env-file .env"
+      fi
+  COMPOSE_CMD: "{{.COMPOSE_BIN}} -f {{.COMPOSE_FILE}} {{.COMPOSE_ENV_FILE_FLAG}}"
 
 tasks:
   env:
