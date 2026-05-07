@@ -62,7 +62,7 @@ services:
     image: postgres:14
     container_name: fresh-price-postgres
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "0.0.0.0:${POSTGRES_PORT}:${POSTGRES_PORT}"
     networks:
       - node-network
     environment:
