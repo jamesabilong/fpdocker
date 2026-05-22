@@ -34,6 +34,8 @@ services:
     container_name: fresh-price-postgres
     networks:
       - node-network
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -43,7 +45,7 @@ services:
       - postgres-logs:/var/log/postgresql
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost -p ${POSTGRES_PORT}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 5

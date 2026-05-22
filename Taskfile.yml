@@ -22,6 +22,16 @@ vars:
           echo "docker-compose.yml"
           ;;
       esac
+  COMPOSE_ENV_FILE:
+    sh: |
+      case "${ENV_MODE:-${APP_ENV:-${NODE_ENV:-dev}}}" in
+        prod|production)
+          echo ".env.prod"
+          ;;
+        *)
+          echo ".env"
+          ;;
+      esac
   COMPOSE_BIN:
     sh: |
       if docker compose version >/dev/null 2>&1; then
@@ -32,12 +42,13 @@ vars:
         echo "ERROR: neither 'docker compose' nor 'docker-compose' is available in PATH" >&2
         exit 1
       fi
+  # FIX 1: Re-detect docker directly instead of referencing {{.COMPOSE_BIN}} in shell
   COMPOSE_ENV_FILE_FLAG:
     sh: |
-      if [ "{{.COMPOSE_BIN}}" = "docker compose" ]; then
-        echo "--env-file .env"
+      if docker compose version >/dev/null 2>&1; then
+        echo "--env-file {{.COMPOSE_ENV_FILE}}"
       elif docker-compose --help 2>/dev/null | grep -q -- '--env-file'; then
-        echo "--env-file .env"
+        echo "--env-file {{.COMPOSE_ENV_FILE}}"
       fi
   COMPOSE_CMD: "{{.COMPOSE_BIN}} -f {{.COMPOSE_FILE}} {{.COMPOSE_ENV_FILE_FLAG}}"
 
@@ -45,7 +56,8 @@ tasks:
   env:
     desc: Show detected environment mode and compose file
     cmds:
-      - echo "ENV_MODE={{.ENV_MODE}} COMPOSE_FILE={{.COMPOSE_FILE}}"
+      - echo "ENV_MODE={{.ENV_MODE}} COMPOSE_FILE={{.COMPOSE_FILE}} COMPOSE_ENV_FILE={{.COMPOSE_ENV_FILE}}"
+      - echo "COMPOSE_CMD={{.COMPOSE_CMD}}"
 
   backend:
     desc: Open a shell in the backend container (auto dev/prod)
@@ -82,12 +94,16 @@ tasks:
     cmds:
       - "{{.COMPOSE_CMD}} down --remove-orphans"
 
+  # FIX 2: Pass ENV_MODE explicitly to all sub-tasks so they don't re-evaluate independently
   restart:
     desc: Restart active environment stack
     cmds:
       - task: down
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
       - task: up
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
       - task: ps
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
 
   logs:
     desc: Follow active environment service logs
@@ -104,10 +120,15 @@ tasks:
     cmds:
       - "{{.COMPOSE_CMD}} config"
 
+  # FIX 2 (same): Pass ENV_MODE explicitly to deploy sub-tasks too
   deploy:
     desc: CI/CD friendly deploy for active environment (pull, build, up, status)
     cmds:
       - task: pull
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
       - task: build
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
       - task: up
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
       - task: ps
+        vars: { ENV_MODE: "{{.ENV_MODE}}" }
