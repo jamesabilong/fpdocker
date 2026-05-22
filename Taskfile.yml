@@ -22,16 +22,7 @@ vars:
           echo "docker-compose.yml"
           ;;
       esac
-  COMPOSE_ENV_FILE:
-    sh: |
-      case "${ENV_MODE:-${APP_ENV:-${NODE_ENV:-dev}}}" in
-        prod|production)
-          echo ".env.prod"
-          ;;
-        *)
-          echo ".env"
-          ;;
-      esac
+  COMPOSE_ENV_FILE: ".env"
   COMPOSE_BIN:
     sh: |
       if docker compose version >/dev/null 2>&1; then
