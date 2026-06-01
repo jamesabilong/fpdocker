@@ -1,0 +1,16 @@
+- name: Build and push backend
+  run: |
+    docker build \
+      --target backend-prod \
+      -t ghcr.io/jamesabilong/fresh-price-backend:latest \
+      -f fpdocker/Dockerfile.prod .
+    docker push ghcr.io/jamesabilong/fresh-price-backend:latest
+
+- name: Build and push frontend
+  run: |
+    docker build \
+      --target frontend-prod \
+      --build-arg VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }} \
+      -t ghcr.io/jamesabilong/fresh-price-frontend:latest \
+      -f fpdocker/Dockerfile.prod .
+    docker push ghcr.io/jamesabilong/fresh-price-frontend:latest
