@@ -1,16 +1,63 @@
-- name: Build and push backend
-  run: |
-    docker build \
-      --target backend-prod \
-      -t ghcr.io/jamesabilong/fresh-price-backend:latest \
-      -f fpdocker/Dockerfile.prod .
-    docker push ghcr.io/jamesabilong/fresh-price-backend:latest
+name: Build and Deploy
 
-- name: Build and push frontend
-  run: |
-    docker build \
-      --target frontend-prod \
-      --build-arg VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }} \
-      -t ghcr.io/jamesabilong/fresh-price-frontend:latest \
-      -f fpdocker/Dockerfile.prod .
-    docker push ghcr.io/jamesabilong/fresh-price-frontend:latest
+on:
+  repository_dispatch:
+    types: [frontend-updated, backend-updated]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fpdocker
+        uses: actions/checkout@v4
+        with:
+          path: fpdocker
+
+      - name: Checkout frontend source
+        if: github.event.action == 'frontend-updated'
+        uses: actions/checkout@v4
+        with:
+          repository: jamesabilong/fresh-price-front
+          token: ${{ secrets.GH_PAT }}
+          path: fresh-price-front
+
+      - name: Checkout backend source
+        if: github.event.action == 'backend-updated'
+        uses: actions/checkout@v4
+        with:
+          repository: jamesabilong/fresh-price-backend
+          token: ${{ secrets.GH_PAT }}
+          path: fresh-price-backend
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push frontend
+        if: github.event.action == 'frontend-updated'
+        run: |
+          docker build \
+            --target frontend-prod \
+            --build-arg VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }} \
+            -t ghcr.io/jamesabilong/fresh-price-frontend:latest \
+            -f fpdocker/Dockerfile.prod .
+          docker push ghcr.io/jamesabilong/fresh-price-frontend:latest
+
+      - name: Build and push backend
+        if: github.event.action == 'backend-updated'
+        run: |
+          docker build \
+            --target backend-prod \
+            -t ghcr.io/jamesabilong/fresh-price-backend:latest \
+            -f fpdocker/Dockerfile.prod .
+          docker push ghcr.io/jamesabilong/fresh-price-backend:latest
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/projects/freshprice/fpdocker
+            docker stack deploy -c docker-compose.prod.yml freshprice
+            docker image prune -f
