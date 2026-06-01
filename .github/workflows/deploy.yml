@@ -58,6 +58,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u jamesabilong --password-stdin
             cd /var/projects/freshprice/fpdocker
             docker stack deploy -c docker-compose.prod.yml freshprice
             docker image prune -f
