@@ -15,6 +15,8 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+    volumes:
+      - /var/projects/freshprice/logs/backend:/app/logs
     networks:
       - node-network
     logging:
