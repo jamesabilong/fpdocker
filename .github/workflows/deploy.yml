@@ -60,21 +60,18 @@ jobs:
           script: |
             cd /var/projects/freshprice/fpdocker
             export $(cat .env | grep -v '^#' | xargs)
-            
-            # Pull latest images first
-            docker pull ghcr.io/jamesabilong/fresh-price-frontend:latest
-            docker pull ghcr.io/jamesabilong/fresh-price-backend:latest
-            
-            # Deploy stack
-            docker stack deploy -c docker-compose.prod.yml freshprice
-            
-            # Force update only the service that changed
-            if [ "$GITHUB_EVENT_ACTION" == "frontend-updated" ]; then
+
+            # Pull only the image that changed
+            if [ "${{ github.event.action }}" == "frontend-updated" ]; then
+              docker pull ghcr.io/jamesabilong/fresh-price-frontend:latest
+              docker stack deploy -c docker-compose.prod.yml freshprice
               docker service update --force --image ghcr.io/jamesabilong/fresh-price-frontend:latest freshprice_frontend
             fi
-            
-            if [ "$GITHUB_EVENT_ACTION" == "backend-updated" ]; then
+
+            if [ "${{ github.event.action }}" == "backend-updated" ]; then
+              docker pull ghcr.io/jamesabilong/fresh-price-backend:latest
+              docker stack deploy -c docker-compose.prod.yml freshprice
               docker service update --force --image ghcr.io/jamesabilong/fresh-price-backend:latest freshprice_backend
             fi
-            
+
             docker image prune -f
