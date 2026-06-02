@@ -10,7 +10,7 @@ RUN npm run build
 
 # --- BACKEND BUILD STAGE ---
 FROM node:20-alpine AS backend-build
-WORKDIR /app\
+WORKDIR /app
 COPY fresh-price-backend/package*.json ./
 RUN npm ci --only=production
 COPY fresh-price-backend/ ./
