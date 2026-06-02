@@ -58,7 +58,23 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u jamesabilong --password-stdin
             cd /var/projects/freshprice/fpdocker
+            export $(cat .env | grep -v '^#' | xargs)
+            
+            # Pull latest images first
+            docker pull ghcr.io/jamesabilong/fresh-price-frontend:latest
+            docker pull ghcr.io/jamesabilong/fresh-price-backend:latest
+            
+            # Deploy stack
             docker stack deploy -c docker-compose.prod.yml freshprice
+            
+            # Force update only the service that changed
+            if [ "$GITHUB_EVENT_ACTION" == "frontend-updated" ]; then
+              docker service update --force --image ghcr.io/jamesabilong/fresh-price-frontend:latest freshprice_frontend
+            fi
+            
+            if [ "$GITHUB_EVENT_ACTION" == "backend-updated" ]; then
+              docker service update --force --image ghcr.io/jamesabilong/fresh-price-backend:latest freshprice_backend
+            fi
+            
             docker image prune -f
