@@ -32,6 +32,8 @@ services:
 
   postgres:
     image: postgres:14
+    env_file:
+      - .env
     networks:
       - node-network
     ports:
