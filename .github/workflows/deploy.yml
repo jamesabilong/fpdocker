@@ -72,6 +72,8 @@ jobs:
               docker pull ghcr.io/jamesabilong/fresh-price-backend:latest
               docker stack deploy -c docker-compose.prod.yml freshprice
               docker service update --force --image ghcr.io/jamesabilong/fresh-price-backend:latest freshprice_backend
+
+              docker exec $(docker ps -q -f name=freshprice_backend) npx sequelize-cli db:migrate
             fi
 
             docker image prune -f
