@@ -42,8 +42,10 @@ PriceCheck's dockerized set-up for development
 5. **Set environment variables**  
 	Inside `fpdocker`, create a new file `.env` and copy the following:
 	```env
-	# Backend URL for the React frontend to communicate with
-	REACT_APP_BACKEND_URL=http://localhost:4000
+	# Frontend API path and Vite dev proxy target
+	API_BASE_URL=/api
+	VITE_API_BASE_URL=/api
+	API_PROXY_TARGET=http://backend:4000
 	
 	# Ports for the backend and frontend services
 	BACKEND_PORT=4000
@@ -61,6 +63,10 @@ PriceCheck's dockerized set-up for development
 	
 	# NGINX
 	NGINX_PORT=8083
+	NGINX_SSL_PORT=8443
+
+	JWT_SECRET=change_me_to_a_strong_secret
+	ALLOWED_ORIGINS=http://localhost:5173
 	```
 
     Do the same with `fresh-price-front` and `fresh-price-backend`. Please refer to the repository README.md
