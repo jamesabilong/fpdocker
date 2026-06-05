@@ -31,11 +31,11 @@ services:
       context: ..
       dockerfile: ./fpdocker/Dockerfile
       target: backend
-    container_name: fresh-price-backend
+    container_name: platform-backend
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
-      - ../fresh-price-backend:/app
+      - ../platform-backend:/app
       - /app/node_modules
     networks:
       - node-network

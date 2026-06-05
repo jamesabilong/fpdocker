@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/jamesabilong/fresh-price-backend:latest
+    image: ghcr.io/jamesabilong/platform-backend:latest
     env_file:
     - .env
     environment:
@@ -14,7 +14,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     volumes:
-      - /var/projects/freshprice/logs/backend:/app/logs
+      - /var/projects/platform/logs/backend:/app/logs
     networks:
       - node-network
     logging:
