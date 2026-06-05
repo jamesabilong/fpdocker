@@ -27,7 +27,7 @@ jobs:
         with:
           repository: jamesabilong/fresh-price-backend
           token: ${{ secrets.GH_PAT }}
-          path: fresh-price-backend
+          path: platform-backend
 
       - name: Login to GHCR
         run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -47,9 +47,9 @@ jobs:
         run: |
           docker build \
             --target backend-prod \
-            -t ghcr.io/jamesabilong/fresh-price-backend:latest \
+            -t ghcr.io/jamesabilong/platform-backend:latest \
             -f fpdocker/Dockerfile.prod .
-          docker push ghcr.io/jamesabilong/fresh-price-backend:latest
+          docker push ghcr.io/jamesabilong/platform-backend:latest
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -69,9 +69,9 @@ jobs:
             fi
 
             if [ "${{ github.event.action }}" == "backend-updated" ]; then
-              docker pull ghcr.io/jamesabilong/fresh-price-backend:latest
+              docker pull ghcr.io/jamesabilong/platform-backend:latest
               docker stack deploy -c docker-compose.prod.yml freshprice
-              docker service update --force --image ghcr.io/jamesabilong/fresh-price-backend:latest freshprice_backend
+              docker service update --force --image ghcr.io/jamesabilong/platform-backend:latest freshprice_backend
 
               docker exec $(docker ps -q -f name=freshprice_backend) npx sequelize-cli db:migrate
             fi
