@@ -49,7 +49,13 @@ jobs:
           docker build \
             -t ghcr.io/jamesabilong/platform-backend:latest \
             -f fpdocker/Dockerfile.backend.prod platform-backend
-          docker push ghcr.io/jamesabilong/platform-backend:latest
+          for attempt in 1 2 3; do
+            docker push ghcr.io/jamesabilong/platform-backend:latest && break
+            if [ "$attempt" = "3" ]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
