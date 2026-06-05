@@ -45,10 +45,10 @@ jobs:
       - name: Build and push backend
         if: github.event.action == 'backend-updated'
         run: |
+          test -f platform-backend/package.json
           docker build \
-            --target backend-prod \
             -t ghcr.io/jamesabilong/platform-backend:latest \
-            -f fpdocker/Dockerfile.prod .
+            -f fpdocker/Dockerfile.backend.prod platform-backend
           docker push ghcr.io/jamesabilong/platform-backend:latest
 
       - name: Deploy to VPS
