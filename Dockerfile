@@ -16,7 +16,7 @@ CMD ["npm", "run", "dev"]
 # Native addon build tools (bcrypt, argon2, etc.) are required only here.
 FROM base AS backend
 RUN apk add --no-cache python3 make g++
-COPY platform-backend/package*.json ./
+COPY fresh-price-backend/package*.json ./
 EXPOSE 4000
 ENV NODE_ENV=development
 CMD ["npm", "run", "dev"]

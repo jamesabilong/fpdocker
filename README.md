@@ -7,7 +7,7 @@ PriceCheck's dockerized set-up for development
 	[Download Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 2. **Check GitHub Access**  
-	- platform-backend
+	- fresh-price-backend
 	- [fresh-price-front](https://github.com/kraim21/fresh-price-front)  
 	- [fpdocker](https://github.com/kraim21/fpdocker)
 
@@ -36,7 +36,7 @@ PriceCheck's dockerized set-up for development
 	```sh
 	git clone https://github.com/kraim21/fpdocker.git
 	git clone https://github.com/kraim21/fresh-price-front.git
-	git clone <platform-backend-repository-url> platform-backend
+	git clone <backend-repository-url> fresh-price-backend
 	```
 
 5. **Set environment variables**  
@@ -69,7 +69,7 @@ PriceCheck's dockerized set-up for development
 	ALLOWED_ORIGINS=http://localhost:5173
 	```
 
-    Do the same with `fresh-price-front` and `platform-backend`. Please refer to the repository README.md
+    Do the same with `fresh-price-front` and `fresh-price-backend`. Please refer to the repository README.md
 
 6. **Build and run the project**
    To start the development project:
