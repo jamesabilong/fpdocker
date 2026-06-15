@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/jamesabilong/platform-backend:latest
+    image: ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}
     env_file:
     - .env
     environment:
@@ -13,8 +13,13 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - UPLOAD_DIR=/app/uploads
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
+      - DB_POOL_MIN=${DB_POOL_MIN:-2}
+      - DB_SSL=${DB_SSL:-false}
     volumes:
       - /var/projects/platform/logs/backend:/app/logs
+      - uploads-data:/app/uploads
     networks:
       - node-network
     logging:
@@ -29,6 +34,32 @@ services:
         failure_action: rollback
       restart_policy:
         condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/platform/db/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["sh", "-c", "npx sequelize-cli db:migrate && node src/server.js"]
+
+  migrate:
+    image: ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    networks:
+      - node-network
+    command: ["npx", "sequelize-cli", "db:migrate"]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: none
 
   postgres:
     image: postgres:14
@@ -61,7 +92,7 @@ services:
         condition: on-failure
 
   frontend:
-    image: ghcr.io/jamesabilong/fresh-price-frontend:latest
+    image: ghcr.io/jamesabilong/fresh-price-frontend:${FRONTEND_IMAGE_TAG:-latest}
     ports:
       - "${NGINX_PORT:-80}:80"
       - "${NGINX_SSL_PORT:-443}:443"
@@ -83,6 +114,11 @@ services:
         failure_action: rollback
       restart_policy:
         condition: on-failure 
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
 networks:
   node-network:
@@ -91,3 +127,4 @@ networks:
 volumes:
   postgres-data:
   postgres-logs:
+  uploads-data:
