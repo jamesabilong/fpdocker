@@ -272,26 +272,63 @@ clear.
 
 ## 9. Deploy the Stack
 
-Load `.env`, then deploy:
+Load `.env`:
 
 ```bash
 set -a
 source .env
 set +a
-
-docker stack deploy --with-registry-auth \
-  -c docker-compose.prod.yml freshprice
 ```
 
-The deploy workflow runs database migrations as a one-off container before
-forcing the backend service to use the newly pulled image:
+If this is the first deployment and the Swarm network does not exist yet, create
+the stack services before running migrations:
 
-```text
-docker run --rm --env-file .env --network freshprice_node-network ghcr.io/jamesabilong/platform-backend:latest npx sequelize-cli db:migrate
+```bash
+if ! docker network inspect freshprice_node-network >/dev/null 2>&1; then
+  docker stack deploy --with-registry-auth \
+    -c docker-compose.prod.yml freshprice
+fi
+```
+
+For backend releases, run migrations with the newly pulled backend image before
+forcing the backend service onto that image:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  --network freshprice_node-network \
+  -e NODE_ENV=production \
+  -e UPLOAD_DIR=/app/uploads \
+  "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}" \
+  npx sequelize-cli db:migrate
 ```
 
 Already-applied migrations are skipped. If a migration fails, stop the backend
 release and fix the migration issue before updating the backend service.
+
+Deploy the Compose configuration and force services onto the intended images:
+
+```bash
+docker stack deploy --with-registry-auth \
+  -c docker-compose.prod.yml freshprice
+```
+
+```bash
+docker service update --force \
+  --image "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}" \
+  freshprice_backend
+
+docker service update --force \
+  --image "ghcr.io/jamesabilong/fresh-price-frontend:${FRONTEND_IMAGE_TAG:-latest}" \
+  freshprice_frontend
+
+docker service update --force \
+  --image "ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}" \
+  freshprice_sugilanon
+```
+
+For frontend-only or Sugilanon-only releases, migrations are not required; deploy
+the stack and force only the changed service image.
 
 ## 10. Monitor Services
 
