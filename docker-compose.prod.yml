@@ -18,7 +18,7 @@ services:
       - DB_POOL_MIN=${DB_POOL_MIN:-2}
       - DB_SSL=${DB_SSL:-false}
     volumes:
-      - /var/projects/platform/logs/backend:/app/logs
+      - /var/projects/freshprice/logs/backend:/app/logs
       - uploads-data:/app/uploads
     networks:
       - node-network

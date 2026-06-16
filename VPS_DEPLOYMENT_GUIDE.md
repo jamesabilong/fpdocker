@@ -1,7 +1,16 @@
 # FreshPrice VPS Deployment Guide
 
-This guide deploys the latest FreshPrice changes and runs the PostgreSQL
-migrations without deleting the existing database.
+This guide deploys FreshPrice to the VPS with Docker Swarm and runs Sequelize
+migrations without deleting the existing PostgreSQL data volume.
+
+Production uses `docker stack deploy` with `docker-compose.prod.yml`. Do not use
+`task restart`, `task up`, or plain `docker compose up` for production unless the
+Compose file is changed away from Swarm-only settings. The production file uses
+an `overlay` network and `deploy` settings, which are intended for Swarm.
+
+The current backend repository and image are named `platform-backend`. In Docker
+Swarm commands, the backend service is still `freshprice_backend` because Swarm
+combines the stack name `freshprice` with the service name `backend`.
 
 The current database volume uses PostgreSQL 14. Keep `postgres:14` unless you
 perform a planned PostgreSQL major-version upgrade.
@@ -10,27 +19,29 @@ perform a planned PostgreSQL major-version upgrade.
 
 ```bash
 ssh YOUR_USER@YOUR_SERVER_IP
-```
-
-Move to the Docker repository:
-
-```bash
 cd /var/projects/freshprice/fpdocker
 ```
 
+Confirm you are on the deployment host and in the Docker repository:
+
+```bash
+pwd
+docker info --format '{{.Swarm.LocalNodeState}}'
+```
+
+Expected Swarm state:
+
+```text
+active
+```
+
+If Swarm is inactive on a single-node VPS, initialize it before deploying:
+
+```bash
+docker swarm init
+```
+
 ## 2. Back Up PostgreSQL
-
-Check the stack and locate the PostgreSQL container:
-
-```bash
-docker ps --filter name=freshprice_postgres
-```
-
-Create a backup directory:
-
-```bash
-mkdir -p /var/backups/freshprice
-```
 
 Load the deployment environment variables:
 
@@ -40,28 +51,39 @@ source .env
 set +a
 ```
 
-Create a compressed database backup:
+Find the PostgreSQL container:
 
 ```bash
-docker exec "$(docker ps -q -f name=freshprice_postgres)" \
+POSTGRES_CONTAINER="$(docker ps -q -f name=freshprice_postgres | head -n 1)"
+echo "$POSTGRES_CONTAINER"
+```
+
+Do not continue if that command prints nothing.
+
+Create a compressed backup:
+
+```bash
+mkdir -p /var/backups/freshprice
+
+docker exec "$POSTGRES_CONTAINER" \
   pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
   > "/var/backups/freshprice/freshprice-$(date +%Y%m%d-%H%M%S).dump"
 ```
 
-Confirm that the backup is not empty:
+Confirm the backup is present and not empty:
 
 ```bash
 ls -lh /var/backups/freshprice
 ```
 
-Do not continue if the backup file is empty or the command failed.
+Do not continue if the backup file is `0B` or the command failed.
 
-## 3. Update the Repository
+## 3. Update Repositories
 
 Check for local changes first:
 
 ```bash
-git status
+git status --short
 ```
 
 Pull the latest Docker configuration:
@@ -70,21 +92,28 @@ Pull the latest Docker configuration:
 git pull --ff-only
 ```
 
-If the backend and frontend are separate repositories, update them as well:
+If the frontend and backend are checked out as separate repositories on the VPS,
+update them too. The backend repository is `platform-backend`; `fresh-price-backend`
+is an old path and should not be used for the current backend.
 
 ```bash
-cd /var/projects/freshprice/fresh-price-backend
+cd /var/projects/freshprice/platform-backend
+git status --short
 git pull --ff-only
 
 cd /var/projects/freshprice/fresh-price-front
+git status --short
 git pull --ff-only
 
 cd /var/projects/freshprice/fpdocker
 ```
 
-## 4. Check the Environment File
+If production uses prebuilt GHCR images only, pulling source repositories is
+optional, but keeping `fpdocker` current is still required.
 
-Open `.env` and confirm these values:
+## 4. Check `.env`
+
+Open `/var/projects/freshprice/fpdocker/.env` and confirm these values:
 
 ```env
 POSTGRES_USER=your_database_user
@@ -93,11 +122,16 @@ POSTGRES_DB=freshprice
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 
+DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+
 JWT_SECRET=replace_with_a_long_random_secret
 ALLOWED_ORIGINS=https://freshprice.philwatch.com
 
 BACKEND_IMAGE_TAG=latest
 FRONTEND_IMAGE_TAG=latest
+
+NGINX_PORT=80
+NGINX_SSL_PORT=443
 
 DB_POOL_MAX=20
 DB_POOL_MIN=2
@@ -110,9 +144,15 @@ Generate a strong JWT secret when needed:
 openssl rand -hex 64
 ```
 
-Do not commit `.env`.
+Do not commit `.env`. Avoid a trailing slash in `ALLOWED_ORIGINS`.
 
-## 5. Confirm the PostgreSQL Version
+Confirm the backend log directory matches the production Compose file:
+
+```bash
+mkdir -p /var/projects/freshprice/logs/backend
+```
+
+## 5. Confirm PostgreSQL Version
 
 Both development and production Compose files should use PostgreSQL 14:
 
@@ -126,40 +166,74 @@ Expected result:
 image: postgres:14
 ```
 
-Do not change an existing PostgreSQL 14 volume directly to `postgres:15`.
-PostgreSQL major-version upgrades require `pg_dump`/`pg_restore` or
-`pg_upgrade`.
+Hard stop: if `docker-compose.prod.yml` renders `postgres:15`, `postgres:16`,
+`postgres:17`, or `postgres:latest`, do not deploy it to the current VPS data
+volume. The PostgreSQL service will fail with an incompatible data directory
+because the existing volume was initialized by PostgreSQL 14.
 
-## 6. Validate the Compose File
-
-```bash
-docker compose -f docker-compose.prod.yml config --quiet
-```
-
-No output means the configuration is valid.
-
-For Docker Swarm, also verify that the node is active:
+Use this pre-deploy check:
 
 ```bash
-docker node ls
+POSTGRES_IMAGE="$(
+  docker compose -f docker-compose.prod.yml --env-file .env config |
+    awk '/image: postgres:/ { print $2; exit }'
+)"
+
+echo "$POSTGRES_IMAGE"
+test "$POSTGRES_IMAGE" = "postgres:14"
 ```
 
-## 7. Pull or Build the Images
+Only continue when the final command exits successfully.
 
-When using images from GitHub Container Registry:
+Do not change an existing PostgreSQL 14 volume directly to `postgres:15` or
+newer. PostgreSQL major-version upgrades require a separate `pg_dump`/`pg_restore`
+or `pg_upgrade` maintenance plan.
+
+## 6. Validate the Production Compose File
+
+Render the production configuration with `.env`:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env config --quiet
+```
+
+No output means the file is valid.
+
+Check the rendered network driver:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env config | grep -A2 "node-network:"
+```
+
+Expected production network:
+
+```text
+node-network:
+  driver: overlay
+```
+
+Because this is an overlay network, deploy with `docker stack deploy`, not
+`docker compose up`.
+
+## 7. Pull Images
+
+Log in if the registry is private:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
+Pull the backend and frontend images:
 
 ```bash
 docker pull "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}"
 docker pull "ghcr.io/jamesabilong/fresh-price-frontend:${FRONTEND_IMAGE_TAG:-latest}"
 ```
 
-If the registry is private, log in first:
+For production, prefer commit-specific tags over `latest` so rollback targets are
+clear.
 
-```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-```
-
-## 8. Deploy the Production Stack
+## 8. Deploy the Stack
 
 Load `.env`, then deploy:
 
@@ -172,29 +246,38 @@ docker stack deploy --with-registry-auth \
   -c docker-compose.prod.yml freshprice
 ```
 
-The backend startup command runs:
+The backend container runs this startup command:
 
 ```text
-npx sequelize-cli db:migrate
+npx sequelize-cli db:migrate && node src/server.js
 ```
 
-before starting Node.js. Already-applied migrations are skipped.
+Already-applied migrations are skipped. If a migration fails, the backend service
+will not become healthy until the migration issue is fixed.
 
-## 9. Monitor the Migration and Services
+## 9. Monitor Services
 
-List the services:
+List services:
 
 ```bash
 docker stack services freshprice
 ```
 
-Watch the backend:
+Check detailed task status:
 
 ```bash
-docker service logs -f --tail 100 freshprice_backend
+docker service ps freshprice_backend --no-trunc
+docker service ps freshprice_postgres --no-trunc
+docker service ps freshprice_frontend --no-trunc
 ```
 
-Look for output similar to:
+Watch backend logs:
+
+```bash
+docker service logs -f --tail 150 freshprice_backend
+```
+
+Expected backend log shape:
 
 ```text
 Sequelize CLI
@@ -204,23 +287,21 @@ Database connection established.
 Server is running on port 4000
 ```
 
-Press `Ctrl+C` to stop following the logs.
-
-Check PostgreSQL:
+Check PostgreSQL logs:
 
 ```bash
 docker service logs --tail 100 freshprice_postgres
 ```
 
-Expected result:
+Expected PostgreSQL signal:
 
 ```text
 database system is ready to accept connections
 ```
 
-## 10. Verify the Migration
+## 10. Verify Migrations
 
-Find the active backend container:
+Find an active backend container:
 
 ```bash
 BACKEND_CONTAINER="$(docker ps -q -f name=freshprice_backend | head -n 1)"
@@ -233,9 +314,11 @@ Check migration status:
 docker exec "$BACKEND_CONTAINER" npx sequelize-cli db:migrate:status
 ```
 
-The required migration should show as `up`:
+The latest backend release should show the current migrations as `up`, including:
 
 ```text
+20260609000001-separate-budget-expenses-and-add-budget-title
+20260609000002-create-scheduled-sub-budgets
 20260615000001-scale-budgets-and-community-prices
 ```
 
@@ -254,13 +337,13 @@ Expected response:
 {"status":"ok","database":"ready"}
 ```
 
-Also verify the public application:
+Verify the public site:
 
 ```bash
 curl -I https://freshprice.philwatch.com
 ```
 
-Test these workflows in the browser:
+Smoke test the main workflows in a browser:
 
 1. Log in as a normal user.
 2. Submit a market price.
@@ -272,6 +355,23 @@ Test these workflows in the browser:
 
 ## 12. Troubleshooting
 
+### `task restart` fails on the VPS
+
+Production is Swarm-based. Use:
+
+```bash
+docker stack deploy --with-registry-auth -c docker-compose.prod.yml freshprice
+```
+
+Do not use:
+
+```bash
+ENV_MODE=prod task restart
+```
+
+The Taskfile uses `docker compose up/down`; the production Compose file uses an
+`overlay` network and Swarm `deploy` settings.
+
 ### PostgreSQL files are incompatible
 
 Error:
@@ -281,15 +381,16 @@ database files are incompatible with server
 The data directory was initialized by PostgreSQL version 14
 ```
 
-Cause: the existing volume is PostgreSQL 14 but Compose uses PostgreSQL 15.
+Cause: the existing volume is PostgreSQL 14 but Compose is trying to run a newer
+PostgreSQL image.
 
-Fix:
+Fix `docker-compose.prod.yml`:
 
 ```yaml
 image: postgres:14
 ```
 
-Then redeploy:
+Redeploy:
 
 ```bash
 docker stack deploy -c docker-compose.prod.yml freshprice
@@ -302,17 +403,31 @@ Do not delete the PostgreSQL volume.
 Inspect backend logs:
 
 ```bash
-docker service logs --tail 200 freshprice_backend
+docker service logs --tail 250 freshprice_backend
+docker service ps freshprice_backend --no-trunc
 ```
 
-Confirm database variables:
+Confirm database variables on the backend service:
 
 ```bash
 docker service inspect freshprice_backend \
   --format '{{json .Spec.TaskTemplate.ContainerSpec.Env}}'
 ```
 
-Retry the migration after correcting the problem:
+Common causes:
+
+- `POSTGRES_HOST` is not `postgres`.
+- the backend image does not include the latest migration files.
+- a previous migration partially ran and created some database objects before failing.
+- the database user lacks permission to create tables, indexes, functions, or triggers.
+
+After correcting the cause, redeploy the stack:
+
+```bash
+docker stack deploy --with-registry-auth -c docker-compose.prod.yml freshprice
+```
+
+Or retry manually inside the current backend container:
 
 ```bash
 BACKEND_CONTAINER="$(docker ps -q -f name=freshprice_backend | head -n 1)"
@@ -321,16 +436,41 @@ docker exec "$BACKEND_CONTAINER" npx sequelize-cli db:migrate
 
 ### Backend does not become healthy
 
+Check backend tasks and logs:
+
 ```bash
 docker service ps freshprice_backend --no-trunc
-docker service logs --tail 200 freshprice_backend
+docker service logs --tail 250 freshprice_backend
 ```
 
 Verify PostgreSQL first:
 
 ```bash
-docker service ps freshprice_postgres
+docker service ps freshprice_postgres --no-trunc
 docker service logs --tail 100 freshprice_postgres
+```
+
+Verify the health endpoint from inside a backend container:
+
+```bash
+BACKEND_CONTAINER="$(docker ps -q -f name=freshprice_backend | head -n 1)"
+docker exec "$BACKEND_CONTAINER" wget -qO- http://localhost:4000/api/platform/db/health
+```
+
+### Backend image is stale
+
+Check the image configured on the service:
+
+```bash
+docker service inspect freshprice_backend \
+  --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+```
+
+Pull the intended tag and redeploy:
+
+```bash
+docker pull "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}"
+docker stack deploy --with-registry-auth -c docker-compose.prod.yml freshprice
 ```
 
 ### CORS errors
@@ -341,9 +481,7 @@ Set the exact frontend origin in `.env`:
 ALLOWED_ORIGINS=https://freshprice.philwatch.com
 ```
 
-Do not add a trailing slash.
-
-Redeploy after changing `.env`.
+Do not add a trailing slash. Redeploy after changing `.env`.
 
 ## 13. Rollback
 
@@ -351,23 +489,19 @@ Check previous service tasks:
 
 ```bash
 docker service ps freshprice_backend --no-trunc
+docker service ps freshprice_frontend --no-trunc
 ```
 
-Roll back the backend image:
+Roll back services:
 
 ```bash
 docker service rollback freshprice_backend
-```
-
-Roll back the frontend image:
-
-```bash
 docker service rollback freshprice_frontend
 ```
 
-Database migrations are not automatically reversed during an application
-rollback. Restore the backup only when a migration damaged data or cannot
-remain compatible with the previous application.
+Database migrations are not automatically reversed during application rollback.
+Restore the backup only when a migration damaged data or cannot remain compatible
+with the previous application.
 
 To restore into an empty replacement database:
 
@@ -377,17 +511,17 @@ cat /var/backups/freshprice/YOUR_BACKUP.dump | \
   pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists
 ```
 
-Treat restore operations as destructive. Confirm the target database and
-backup file before running them.
+Treat restore operations as destructive. Confirm the target database and backup
+file before running them.
 
 ## 14. Regular Operations
-
-Recommended minimum production schedule:
 
 - Back up PostgreSQL daily.
 - Keep at least 7 daily and 4 weekly backups.
 - Test restoring a backup at least monthly.
 - Use commit-specific image tags instead of `latest`.
 - Review `docker service logs` after every deployment.
-- Run migration status checks after backend releases.
+- Run `npx sequelize-cli db:migrate:status` after backend releases.
+- Keep production deployment on `docker stack deploy` while `docker-compose.prod.yml`
+  uses `overlay` networking.
 - Upgrade PostgreSQL major versions using a separate, tested maintenance plan.

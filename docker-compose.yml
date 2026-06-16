@@ -31,11 +31,13 @@ services:
       context: ..
       dockerfile: ./fpdocker/Dockerfile
       target: backend
+      args:
+        BACKEND_DIR_NAME: ${BACKEND_DIR_NAME:-platform-backend}
     container_name: platform-backend
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
-      - ../fresh-price-backend:/app
+      - ../${BACKEND_DIR_NAME:-platform-backend}:/app
       - /app/node_modules
     networks:
       - node-network
@@ -66,10 +68,12 @@ services:
       context: ..
       dockerfile: ./fpdocker/Dockerfile
       target: backend
+      args:
+        BACKEND_DIR_NAME: ${BACKEND_DIR_NAME:-platform-backend}
     networks:
       - node-network
     volumes:
-      - ../fresh-price-backend:/app
+      - ../${BACKEND_DIR_NAME:-platform-backend}:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
