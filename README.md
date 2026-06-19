@@ -74,15 +74,31 @@ PriceCheck's dockerized set-up for development
 	If your local backend folder still uses the old `fresh-price-backend` name, either rename it to `platform-backend` or set `BACKEND_DIR_NAME=fresh-price-backend` in `fpdocker/.env`. Do not edit the tracked Compose file for a machine-specific folder name.
 
 6. **Build and run the project**
-   To start the development project:
+   From the `fpdocker` folder, use Task for local development:
    ```sh
-   docker compose up -d
+   task dev
    ```
 
-   To rebuild (if you have changes or want a fresh build):
+   To rebuild and recreate the development services after dependency,
+   Dockerfile, or Compose changes:
    ```sh
-   docker compose build --no-cache
-   docker compose up -d
+   task dev:restart
+   ```
+
+   Useful development commands:
+   ```sh
+   task dev:logs
+   task ps
+   task backend
+   task frontend
+   task backend:cmd -- npm run test:unit
+   task frontend:cmd -- npm run test:unit
+   task migrate
+   ```
+
+   Generic service command format:
+   ```sh
+   task cmd SERVICE=backend -- npm run test:unit
    ```
 
    For production swarm deploy:
