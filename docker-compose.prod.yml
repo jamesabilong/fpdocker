@@ -40,26 +40,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    command: ["sh", "-c", "npx sequelize-cli db:migrate && node src/server.js"]
-
-  migrate:
-    image: ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-    networks:
-      - node-network
-    command: ["npx", "sequelize-cli", "db:migrate"]
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: none
+    command: ["node", "src/server.js"]
 
   postgres:
     image: postgres:14
