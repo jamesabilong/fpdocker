@@ -246,14 +246,15 @@ docker stack deploy --with-registry-auth \
   -c docker-compose.prod.yml freshprice
 ```
 
-The backend container runs this startup command:
+The deploy workflow runs database migrations as a one-off container before
+forcing the backend service to use the newly pulled image:
 
 ```text
-npx sequelize-cli db:migrate && node src/server.js
+docker run --rm --env-file .env --network freshprice_node-network ghcr.io/jamesabilong/platform-backend:latest npx sequelize-cli db:migrate
 ```
 
-Already-applied migrations are skipped. If a migration fails, the backend service
-will not become healthy until the migration issue is fixed.
+Already-applied migrations are skipped. If a migration fails, stop the backend
+release and fix the migration issue before updating the backend service.
 
 ## 9. Monitor Services
 
@@ -430,8 +431,13 @@ docker stack deploy --with-registry-auth -c docker-compose.prod.yml freshprice
 Or retry manually inside the current backend container:
 
 ```bash
-BACKEND_CONTAINER="$(docker ps -q -f name=freshprice_backend | head -n 1)"
-docker exec "$BACKEND_CONTAINER" npx sequelize-cli db:migrate
+docker run --rm \
+  --env-file .env \
+  --network freshprice_node-network \
+  -e NODE_ENV=production \
+  -e UPLOAD_DIR=/app/uploads \
+  ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest} \
+  npx sequelize-cli db:migrate
 ```
 
 ### Backend does not become healthy
