@@ -26,6 +26,32 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  sugilanon:
+    build:
+      context: ..
+      dockerfile: ./fpdocker/Dockerfile
+      target: sugilanon
+    container_name: sugilanon
+    ports:
+      - "${SUGILANON_PORT:-3000}:3000"
+    volumes:
+      - ../sugilanon:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - node-network
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-http://localhost:4000/api}
+      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-http://localhost:3000}
+    command: sh -c "npm install && npm run dev"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: ..
@@ -114,6 +140,32 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: freshprice-n8n
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    networks:
+      - node-network
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_LISTEN_ADDRESS=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change_me_use_a_32_char_secret_key}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
+      - GENERIC_TIMEZONE=${N8N_TIMEZONE:-Asia/Manila}
+      - TZ=${N8N_TIMEZONE:-Asia/Manila}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   node-network:
     driver: bridge
@@ -122,3 +174,4 @@ volumes:
   postgres-data:
   postgres-logs:
   node_modules:
+  n8n-data:

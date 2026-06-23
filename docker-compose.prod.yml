@@ -101,6 +101,36 @@ services:
       timeout: 5s
       retries: 5
 
+  sugilanon:
+    image: ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    networks:
+      - node-network
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://sugilanon.philwatch.com/api}
+      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://sugilanon.philwatch.com}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 networks:
   node-network:
     driver: overlay

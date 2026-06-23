@@ -129,6 +129,10 @@ ALLOWED_ORIGINS=https://freshprice.philwatch.com
 
 BACKEND_IMAGE_TAG=latest
 FRONTEND_IMAGE_TAG=latest
+SUGILANON_IMAGE_TAG=latest
+
+SUGILANON_API_BASE_URL=https://sugilanon.philwatch.com/api
+SUGILANON_SITE_URL=https://sugilanon.philwatch.com
 
 NGINX_PORT=80
 NGINX_SSL_PORT=443
@@ -145,6 +149,13 @@ openssl rand -hex 64
 ```
 
 Do not commit `.env`. Avoid a trailing slash in `ALLOWED_ORIGINS`.
+
+If Sugilanon needs authenticated browser calls to the shared backend, include
+its exact origin in `ALLOWED_ORIGINS` as a comma-separated value:
+
+```env
+ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://sugilanon.philwatch.com
+```
 
 Confirm the backend log directory matches the production Compose file:
 
@@ -189,7 +200,28 @@ Do not change an existing PostgreSQL 14 volume directly to `postgres:15` or
 newer. PostgreSQL major-version upgrades require a separate `pg_dump`/`pg_restore`
 or `pg_upgrade` maintenance plan.
 
-## 6. Validate the Production Compose File
+## 6. Confirm TLS Certificates
+
+The SSL nginx config expects both domains to have LetEncrypt files mounted from
+`/etc/letsencrypt`:
+
+```text
+/etc/letsencrypt/live/freshprice.philwatch.com/fullchain.pem
+/etc/letsencrypt/live/sugilanon.philwatch.com/fullchain.pem
+```
+
+If the Sugilanon certificate is missing, issue it before switching nginx to
+`nginx.prod.ssl.conf`:
+
+```bash
+sudo certbot certonly --standalone -d sugilanon.philwatch.com
+```
+
+Port 80 must point to the VPS and be free while standalone certbot runs. If nginx
+is already using port 80, stop the frontend/nginx service briefly, issue the
+certificate, then redeploy the stack.
+
+## 7. Validate the Production Compose File
 
 Render the production configuration with `.env`:
 
@@ -215,7 +247,7 @@ node-network:
 Because this is an overlay network, deploy with `docker stack deploy`, not
 `docker compose up`.
 
-## 7. Pull Images
+## 8. Pull Images
 
 Log in if the registry is private:
 
@@ -223,17 +255,18 @@ Log in if the registry is private:
 echo "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
 
-Pull the backend and frontend images:
+Pull the backend, frontend, and Sugilanon images:
 
 ```bash
 docker pull "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}"
 docker pull "ghcr.io/jamesabilong/fresh-price-frontend:${FRONTEND_IMAGE_TAG:-latest}"
+docker pull "ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}"
 ```
 
 For production, prefer commit-specific tags over `latest` so rollback targets are
 clear.
 
-## 8. Deploy the Stack
+## 9. Deploy the Stack
 
 Load `.env`, then deploy:
 
@@ -256,7 +289,7 @@ docker run --rm --env-file .env --network freshprice_node-network ghcr.io/jamesa
 Already-applied migrations are skipped. If a migration fails, stop the backend
 release and fix the migration issue before updating the backend service.
 
-## 9. Monitor Services
+## 10. Monitor Services
 
 List services:
 
@@ -270,6 +303,7 @@ Check detailed task status:
 docker service ps freshprice_backend --no-trunc
 docker service ps freshprice_postgres --no-trunc
 docker service ps freshprice_frontend --no-trunc
+docker service ps freshprice_sugilanon --no-trunc
 ```
 
 Watch backend logs:
@@ -300,7 +334,19 @@ Expected PostgreSQL signal:
 database system is ready to accept connections
 ```
 
-## 10. Verify Migrations
+Check Sugilanon logs:
+
+```bash
+docker service logs --tail 100 freshprice_sugilanon
+```
+
+Expected Sugilanon signal:
+
+```text
+Ready
+```
+
+## 11. Verify Migrations
 
 Find an active backend container:
 
@@ -323,7 +369,7 @@ The latest backend release should show the current migrations as `up`, including
 20260615000001-scale-budgets-and-community-prices
 ```
 
-## 11. Verify Application Health
+## 12. Verify Application Health
 
 From the VPS:
 
@@ -344,6 +390,14 @@ Verify the public site:
 curl -I https://freshprice.philwatch.com
 ```
 
+Verify Sugilanon:
+
+```bash
+curl -I https://sugilanon.philwatch.com
+curl --fail --silent \
+  https://sugilanon.philwatch.com/api/platform/db/health
+```
+
 Smoke test the main workflows in a browser:
 
 1. Log in as a normal user.
@@ -354,7 +408,7 @@ Smoke test the main workflows in a browser:
 6. Confirm the public price and statistics.
 7. Confirm unauthorized users cannot modify products, markets, or users.
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 ### `task restart` fails on the VPS
 
@@ -489,13 +543,40 @@ ALLOWED_ORIGINS=https://freshprice.philwatch.com
 
 Do not add a trailing slash. Redeploy after changing `.env`.
 
-## 13. Rollback
+For Sugilanon browser requests, include both production origins:
+
+```env
+ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://sugilanon.philwatch.com
+```
+
+### Sugilanon does not become healthy
+
+Check service tasks and logs:
+
+```bash
+docker service ps freshprice_sugilanon --no-trunc
+docker service logs --tail 250 freshprice_sugilanon
+```
+
+Verify nginx can resolve the internal service from the frontend/nginx container:
+
+```bash
+FRONTEND_CONTAINER="$(docker ps -q -f name=freshprice_frontend | head -n 1)"
+docker exec "$FRONTEND_CONTAINER" wget -qO- http://sugilanon:3000/
+```
+
+If the service is healthy internally but the domain fails, check DNS, the
+LetEncrypt certificate path, and that `nginx.prod.ssl.conf` is included in the
+frontend image.
+
+## 14. Rollback
 
 Check previous service tasks:
 
 ```bash
 docker service ps freshprice_backend --no-trunc
 docker service ps freshprice_frontend --no-trunc
+docker service ps freshprice_sugilanon --no-trunc
 ```
 
 Roll back services:
@@ -503,6 +584,7 @@ Roll back services:
 ```bash
 docker service rollback freshprice_backend
 docker service rollback freshprice_frontend
+docker service rollback freshprice_sugilanon
 ```
 
 Database migrations are not automatically reversed during application rollback.
@@ -520,7 +602,7 @@ cat /var/backups/freshprice/YOUR_BACKUP.dump | \
 Treat restore operations as destructive. Confirm the target database and backup
 file before running them.
 
-## 14. Regular Operations
+## 15. Regular Operations
 
 - Back up PostgreSQL daily.
 - Keep at least 7 daily and 4 weekly backups.

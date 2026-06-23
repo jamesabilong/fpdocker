@@ -87,6 +87,16 @@ tasks:
     cmds:
       - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} frontend sh"
 
+  sugilanon:
+    desc: Open a shell in the Sugilanon container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} sugilanon sh"
+
+  n8n:
+    desc: Open a shell in the n8n container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} n8n sh"
+
   nginx:
     desc: Open a shell in the nginx container
     cmds:
