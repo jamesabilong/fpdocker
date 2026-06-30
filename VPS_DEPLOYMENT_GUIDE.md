@@ -105,6 +105,10 @@ cd /var/projects/freshprice/fresh-price-front
 git status --short
 git pull --ff-only
 
+cd /var/projects/freshprice/sugilanon
+git status --short
+git pull --ff-only
+
 cd /var/projects/freshprice/fpdocker
 ```
 
