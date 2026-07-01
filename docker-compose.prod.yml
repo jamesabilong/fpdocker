@@ -141,6 +141,7 @@ services:
 networks:
   node-network:
     driver: overlay
+    attachable: true
 
 volumes:
   postgres-data:
