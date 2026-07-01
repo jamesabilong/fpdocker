@@ -79,12 +79,6 @@ services:
         published: ${NGINX_PORT:-8081}
         protocol: tcp
         mode: host
-      - target: 443
-        published: ${NGINX_SSL_PORT:-8443}
-        protocol: tcp
-        mode: host
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - node-network
     environment:
