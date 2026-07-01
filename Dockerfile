@@ -12,11 +12,20 @@ ENV VITE_PORT=5173
 ENV CHOKIDAR_USEPOLLING=true
 CMD ["npm", "run", "dev"]
 
+# Sugilanon/PhilWatch blog dev stage
+# Source and node_modules are provided via bind-mount volumes at runtime.
+FROM base AS sugilanon
+COPY sugilanon/package*.json ./
+EXPOSE 3000
+ENV NEXT_TELEMETRY_DISABLED=1
+CMD ["npm", "run", "dev"]
+
 # Backend dev stage
 # Native addon build tools (bcrypt, argon2, etc.) are required only here.
 FROM base AS backend
 RUN apk add --no-cache python3 make g++
-COPY fresh-price-backend/package*.json ./
+ARG BACKEND_DIR_NAME=platform-backend
+COPY ${BACKEND_DIR_NAME}/package*.json ./
 EXPOSE 4000
 ENV NODE_ENV=development
 CMD ["npm", "run", "dev"]

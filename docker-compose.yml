@@ -19,7 +19,35 @@ services:
       - VITE_API_PROXY_TARGET=${API_PROXY_TARGET:-http://backend:4000}
     stdin_open: true
     tty: true
-    command: sh -c "npm install && npx sequelize-cli db:migrate && npm run dev"
+    command: sh -c "npm install && npm run dev"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  sugilanon:
+    build:
+      context: ..
+      dockerfile: ./fpdocker/Dockerfile
+      target: sugilanon
+    container_name: sugilanon
+    ports:
+      - "${SUGILANON_PORT:-3000}:3000"
+    volumes:
+      - ../sugilanon:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - node-network
+    environment:
+      - NODE_ENV=development
+      - CONTENT_API_BASE_URL=http://backend:4000/api
+      - NEXT_TELEMETRY_DISABLED=1
+      - SUGILANON_ALLOWED_DEV_ORIGINS=${SUGILANON_ALLOWED_DEV_ORIGINS:-}
+      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-http://localhost:4000/api}
+      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-http://localhost:3000}
+    command: sh -c "npm install && npm run dev"
     logging:
       driver: "json-file"
       options:
@@ -31,11 +59,13 @@ services:
       context: ..
       dockerfile: ./fpdocker/Dockerfile
       target: backend
+      args:
+        BACKEND_DIR_NAME: ${BACKEND_DIR_NAME:-platform-backend}
     container_name: platform-backend
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
-      - ../fresh-price-backend:/app
+      - ../${BACKEND_DIR_NAME:-platform-backend}:/app
       - /app/node_modules
     networks:
       - node-network
@@ -49,15 +79,45 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - SUGILANON_AUTO_SOURCE_SCAN=${SUGILANON_AUTO_SOURCE_SCAN:-false}
+      - SUGILANON_SOURCE_SCAN_INTERVAL_MINUTES=${SUGILANON_SOURCE_SCAN_INTERVAL_MINUTES:-30}
+      - SUGILANON_SOURCE_SCAN_STARTUP_DELAY_MS=${SUGILANON_SOURCE_SCAN_STARTUP_DELAY_MS:-10000}
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     command: sh -c "npm install && npm run dev"
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: ./fpdocker/Dockerfile
+      target: backend
+      args:
+        BACKEND_DIR_NAME: ${BACKEND_DIR_NAME:-platform-backend}
+    networks:
+      - node-network
+    volumes:
+      - ../${BACKEND_DIR_NAME:-platform-backend}:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npx sequelize-cli db:migrate"
+    restart: "no"
 
   postgres:
     image: postgres:14
@@ -73,12 +133,38 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - postgres-logs:/var/log/postgresql
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost -p ${POSTGRES_PORT}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: freshprice-n8n
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    networks:
+      - node-network
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_LISTEN_ADDRESS=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change_me_use_a_32_char_secret_key}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
+      - GENERIC_TIMEZONE=${N8N_TIMEZONE:-Asia/Manila}
+      - TZ=${N8N_TIMEZONE:-Asia/Manila}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    restart: "no"
     logging:
       driver: "json-file"
       options:
@@ -93,3 +179,4 @@ volumes:
   postgres-data:
   postgres-logs:
   node_modules:
+  n8n-data:

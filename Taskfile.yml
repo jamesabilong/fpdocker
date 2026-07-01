@@ -7,14 +7,12 @@ vars:
         echo "${ENV_MODE}"
       elif [ -n "${APP_ENV}" ]; then
         echo "${APP_ENV}"
-      elif [ -n "${NODE_ENV}" ]; then
-        echo "${NODE_ENV}"
       else
         echo "dev"
       fi
   COMPOSE_FILE:
     sh: |
-      case "${ENV_MODE:-${APP_ENV:-${NODE_ENV:-dev}}}" in
+      case "${ENV_MODE:-${APP_ENV:-dev}}" in
         prod|production)
           echo "docker-compose.prod.yml"
           ;;
@@ -33,7 +31,6 @@ vars:
         echo "ERROR: neither 'docker compose' nor 'docker-compose' is available in PATH" >&2
         exit 1
       fi
-  # FIX 1: Re-detect docker directly instead of referencing {{.COMPOSE_BIN}} in shell
   COMPOSE_ENV_FILE_FLAG:
     sh: |
       if docker compose version >/dev/null 2>&1; then
@@ -42,28 +39,96 @@ vars:
         echo "--env-file {{.COMPOSE_ENV_FILE}}"
       fi
   COMPOSE_CMD: "{{.COMPOSE_BIN}} -f {{.COMPOSE_FILE}} {{.COMPOSE_ENV_FILE_FLAG}}"
+  EXEC_FLAGS:
+    sh: |
+      if [ -t 0 ] && [ -t 1 ]; then
+        echo ""
+      else
+        echo "-T"
+      fi
 
 tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
   env:
     desc: Show detected environment mode and compose file
     cmds:
       - echo "ENV_MODE={{.ENV_MODE}} COMPOSE_FILE={{.COMPOSE_FILE}} COMPOSE_ENV_FILE={{.COMPOSE_ENV_FILE}}"
       - echo "COMPOSE_CMD={{.COMPOSE_CMD}}"
 
-  backend:
-    desc: Open a shell in the backend container (auto dev/prod)
+  dev:
+    desc: Start the local development stack
     cmds:
-      - "{{.COMPOSE_CMD}} exec -it backend sh"
+      - task: up
+        vars: { ENV_MODE: "dev" }
+
+  dev:restart:
+    desc: Rebuild and recreate the local development stack
+    cmds:
+      - task: restart
+        vars: { ENV_MODE: "dev" }
+
+  dev:logs:
+    desc: Follow local development logs
+    cmds:
+      - task: logs
+        vars: { ENV_MODE: "dev" }
+
+  backend:
+    desc: Open a shell in the backend container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} backend sh"
+
+  frontend:
+    desc: Open a shell in the frontend container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} frontend sh"
+
+  sugilanon:
+    desc: Open a shell in the Sugilanon container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} sugilanon sh"
+
+  n8n:
+    desc: Open a shell in the n8n container
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} n8n sh"
 
   nginx:
-    desc: Open a shell in the nginx container (auto dev/prod)
+    desc: Open a shell in the nginx container
     cmds:
-      - "{{.COMPOSE_CMD}} exec -it nginx sh"
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} nginx sh"
 
   db:
-    desc: Open a shell in the postgres container (auto dev/prod)
+    desc: Open a shell in the postgres container
     cmds:
-      - "{{.COMPOSE_CMD}} exec -it postgres sh"
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} postgres sh"
+
+  cmd:
+    desc: Run a command in a service, e.g. task cmd SERVICE=backend -- npm run test:unit
+    requires:
+      vars:
+        - SERVICE
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} {{.SERVICE}} {{.CLI_ARGS}}"
+
+  backend:cmd:
+    desc: Run a backend command, e.g. task backend:cmd -- npm run test:unit
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} backend {{.CLI_ARGS}}"
+
+  frontend:cmd:
+    desc: Run a frontend command, e.g. task frontend:cmd -- npm run test:unit
+    cmds:
+      - "{{.COMPOSE_CMD}} exec {{.EXEC_FLAGS}} frontend {{.CLI_ARGS}}"
+
+  migrate:
+    desc: Run backend database migrations for the active compose environment
+    cmds:
+      - "{{.COMPOSE_CMD}} run --rm migrate"
 
   pull:
     desc: Pull latest upstream images referenced by active compose
@@ -85,14 +150,10 @@ tasks:
     cmds:
       - "{{.COMPOSE_CMD}} down --remove-orphans"
 
-  # FIX 2: Pass ENV_MODE explicitly to all sub-tasks so they don't re-evaluate independently
   restart:
-    desc: Restart active environment stack
+    desc: Rebuild and recreate active environment services
     cmds:
-      - task: down
-        vars: { ENV_MODE: "{{.ENV_MODE}}" }
-      - task: up
-        vars: { ENV_MODE: "{{.ENV_MODE}}" }
+      - "{{.COMPOSE_CMD}} up -d --build --force-recreate --remove-orphans"
       - task: ps
         vars: { ENV_MODE: "{{.ENV_MODE}}" }
 
@@ -111,7 +172,6 @@ tasks:
     cmds:
       - "{{.COMPOSE_CMD}} config"
 
-  # FIX 2 (same): Pass ENV_MODE explicitly to deploy sub-tasks too
   deploy:
     desc: CI/CD friendly deploy for active environment (pull, build, up, status)
     cmds:

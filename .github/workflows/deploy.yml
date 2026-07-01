@@ -2,7 +2,7 @@ name: Build and Deploy
 
 on:
   repository_dispatch:
-    types: [frontend-updated, backend-updated]
+    types: [frontend-updated, backend-updated, sugilanon-updated]
 
 jobs:
   deploy:
@@ -25,9 +25,17 @@ jobs:
         if: github.event.action == 'backend-updated'
         uses: actions/checkout@v4
         with:
-          repository: jamesabilong/fresh-price-backend
+          repository: jamesabilong/platform-backend
           token: ${{ secrets.GH_PAT }}
           path: platform-backend
+
+      - name: Checkout Sugilanon source
+        if: github.event.action == 'sugilanon-updated'
+        uses: actions/checkout@v4
+        with:
+          repository: jamesabilong/sugilanon
+          token: ${{ secrets.GH_PAT }}
+          path: sugilanon
 
       - name: Login to GHCR
         run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -57,6 +65,23 @@ jobs:
             sleep $((attempt * 10))
           done
 
+      - name: Build and push Sugilanon
+        if: github.event.action == 'sugilanon-updated'
+        run: |
+          test -f sugilanon/package.json
+          docker build \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.SUGILANON_API_BASE_URL }} \
+            --build-arg NEXT_PUBLIC_SITE_URL=${{ secrets.SUGILANON_SITE_URL }} \
+            -t ghcr.io/jamesabilong/sugilanon:latest \
+            -f fpdocker/Dockerfile.sugilanon.prod sugilanon
+          for attempt in 1 2 3; do
+            docker push ghcr.io/jamesabilong/sugilanon:latest && break
+            if [ "$attempt" = "3" ]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -76,10 +101,24 @@ jobs:
 
             if [ "${{ github.event.action }}" == "backend-updated" ]; then
               docker pull ghcr.io/jamesabilong/platform-backend:latest
+              if ! docker network inspect freshprice_node-network >/dev/null 2>&1; then
+                docker stack deploy -c docker-compose.prod.yml freshprice
+              fi
+              docker run --rm \
+                --env-file .env \
+                --network freshprice_node-network \
+                -e NODE_ENV=production \
+                -e UPLOAD_DIR=/app/uploads \
+                ghcr.io/jamesabilong/platform-backend:latest \
+                npx sequelize-cli db:migrate
               docker stack deploy -c docker-compose.prod.yml freshprice
               docker service update --force --image ghcr.io/jamesabilong/platform-backend:latest freshprice_backend
+            fi
 
-              docker exec $(docker ps -q -f name=freshprice_backend) npx sequelize-cli db:migrate
+            if [ "${{ github.event.action }}" == "sugilanon-updated" ]; then
+              docker pull ghcr.io/jamesabilong/sugilanon:latest
+              docker stack deploy -c docker-compose.prod.yml freshprice
+              docker service update --force --image ghcr.io/jamesabilong/sugilanon:latest freshprice_sugilanon
             fi
 
             docker image prune -f

@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/jamesabilong/platform-backend:latest
+    image: ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}
     env_file:
     - .env
     environment:
@@ -13,8 +13,13 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - UPLOAD_DIR=/app/uploads
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
+      - DB_POOL_MIN=${DB_POOL_MIN:-2}
+      - DB_SSL=${DB_SSL:-false}
     volumes:
-      - /var/projects/platform/logs/backend:/app/logs
+      - /var/projects/freshprice/logs/backend:/app/logs
+      - uploads-data:/app/uploads
     networks:
       - node-network
     logging:
@@ -29,6 +34,13 @@ services:
         failure_action: rollback
       restart_policy:
         condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/platform/db/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["node", "src/server.js"]
 
   postgres:
     image: postgres:14
@@ -61,7 +73,7 @@ services:
         condition: on-failure
 
   frontend:
-    image: ghcr.io/jamesabilong/fresh-price-frontend:latest
+    image: ghcr.io/jamesabilong/fresh-price-frontend:${FRONTEND_IMAGE_TAG:-latest}
     ports:
       - target: 80
         published: ${NGINX_PORT:-8081}
@@ -89,6 +101,42 @@ services:
         failure_action: rollback
       restart_policy:
         condition: on-failure 
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  sugilanon:
+    image: ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    networks:
+      - node-network
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - CONTENT_API_BASE_URL=${CONTENT_API_BASE_URL:-http://backend:4000/api}
+      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://sugilanon.philwatch.com/api}
+      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://sugilanon.philwatch.com}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 networks:
   node-network:
@@ -97,3 +145,4 @@ networks:
 volumes:
   postgres-data:
   postgres-logs:
+  uploads-data:
