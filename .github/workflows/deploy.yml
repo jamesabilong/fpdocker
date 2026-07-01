@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: [frontend-updated, backend-updated, sugilanon-updated]
 
+concurrency:
+  group: freshprice-production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -90,6 +94,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/projects/freshprice/fpdocker
+            git pull --ff-only origin master
+
             env_value() {
               awk -F= -v key="$1" '
                 $0 !~ /^[[:space:]]*#/ && $1 == key {
@@ -116,7 +122,11 @@ jobs:
             if [ "${{ github.event.action }}" == "frontend-updated" ]; then
               docker pull ghcr.io/jamesabilong/fresh-price-frontend:latest
               docker stack deploy -c docker-compose.prod.yml freshprice
-              docker service update --force --image ghcr.io/jamesabilong/fresh-price-frontend:latest freshprice_frontend
+              docker service update \
+                --force \
+                --update-order stop-first \
+                --image ghcr.io/jamesabilong/fresh-price-frontend:latest \
+                freshprice_frontend
             fi
 
             if [ "${{ github.event.action }}" == "backend-updated" ]; then
