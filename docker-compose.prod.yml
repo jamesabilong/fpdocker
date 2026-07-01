@@ -117,8 +117,8 @@ services:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
       - CONTENT_API_BASE_URL=${CONTENT_API_BASE_URL:-http://backend:4000/api}
-      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://sugilanon.philwatch.com/api}
-      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://sugilanon.philwatch.com}
+      - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://philwatch.com/api}
+      - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://philwatch.com}
     logging:
       driver: "json-file"
       options:
