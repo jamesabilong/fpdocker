@@ -93,6 +93,21 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
+
+            dump_deploy_diagnostics() {
+              echo "=== Docker service status ==="
+              docker service ls || true
+              for service in freshprice_backend freshprice_frontend freshprice_sugilanon; do
+                echo "=== docker service ps $service ==="
+                docker service ps --no-trunc "$service" || true
+                echo "=== docker service logs $service ==="
+                docker service logs --tail 80 "$service" || true
+              done
+            }
+
+            trap dump_deploy_diagnostics ERR
+
             cd /var/projects/freshprice/fpdocker
             git pull --ff-only origin master
 
@@ -143,7 +158,11 @@ jobs:
                 ghcr.io/jamesabilong/platform-backend:latest \
                 npx sequelize-cli db:migrate
               docker stack deploy -c docker-compose.prod.yml freshprice
-              docker service update --force --image ghcr.io/jamesabilong/platform-backend:latest freshprice_backend
+              docker service update \
+                --force \
+                --update-order stop-first \
+                --image ghcr.io/jamesabilong/platform-backend:latest \
+                freshprice_backend
             fi
 
             if [ "${{ github.event.action }}" == "sugilanon-updated" ]; then
