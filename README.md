@@ -154,3 +154,45 @@ PriceCheck's dockerized set-up for development
    ```sh
    docker stack deploy -c docker-compose.prod.yml freshprice
    ```
+
+## Production Deployment Triggers
+
+The production GitHub Actions workflow in this repository runs from
+`repository_dispatch` events. The app repositories send these events
+automatically when their deployment branches are pushed:
+
+- `fresh-price-front` `master` sends `frontend-updated`.
+- `platform-backend` `master` sends `backend-updated`.
+- `sugilanon` `main` or `master` sends `sugilanon-updated`.
+
+When `fpdocker` deployment files change, push `fpdocker` `master` first. The VPS
+deploy step runs `git pull --ff-only origin master` before applying the changed
+service, so the next app dispatch will use the latest Compose and Docker config.
+
+Manual dispatch examples:
+
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: token ${GH_PAT}" \
+  https://api.github.com/repos/jamesabilong/fpdocker/dispatches \
+  -d '{"event_type": "frontend-updated"}'
+```
+
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: token ${GH_PAT}" \
+  https://api.github.com/repos/jamesabilong/fpdocker/dispatches \
+  -d '{"event_type": "backend-updated"}'
+```
+
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: token ${GH_PAT}" \
+  https://api.github.com/repos/jamesabilong/fpdocker/dispatches \
+  -d '{"event_type": "sugilanon-updated", "client_payload": {"ref": "main"}}'
+```
+
+Use a token with permission to dispatch workflows in `jamesabilong/fpdocker`.
