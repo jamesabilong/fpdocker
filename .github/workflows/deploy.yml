@@ -168,7 +168,7 @@ jobs:
             if [ "${{ github.event.action }}" == "sugilanon-updated" ]; then
               docker pull ghcr.io/jamesabilong/sugilanon:latest
               docker stack deploy -c docker-compose.prod.yml freshprice
-              docker service update --force --image ghcr.io/jamesabilong/sugilanon:latest freshprice_sugilanon
+              docker service update --detach=true --force --image ghcr.io/jamesabilong/sugilanon:latest freshprice_sugilanon
             fi
 
             docker image prune -f

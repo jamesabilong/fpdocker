@@ -170,6 +170,10 @@ when the backend service already exists. They do not redeploy the full stack, so
 they do not require unrelated images such as `ghcr.io/jamesabilong/sugilanon:latest`
 to be present.
 
+FreshPrice frontend and Sugilanon production healthchecks use `127.0.0.1`
+instead of `localhost` inside the container. Keep that behavior because the VPS
+Swarm tasks can serve traffic while failing the `localhost` probe.
+
 When `fpdocker` deployment files change, push `fpdocker` `master` first. The VPS
 deploy step runs `git pull --ff-only origin master` before applying the changed
 service, so the next app dispatch will use the latest Compose and Docker config.
