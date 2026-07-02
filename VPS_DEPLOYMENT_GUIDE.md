@@ -135,8 +135,8 @@ BACKEND_IMAGE_TAG=latest
 FRONTEND_IMAGE_TAG=latest
 SUGILANON_IMAGE_TAG=latest
 
-SUGILANON_API_BASE_URL=https://sugilanon.philwatch.com/api
-SUGILANON_SITE_URL=https://sugilanon.philwatch.com
+SUGILANON_API_BASE_URL=https://philwatch.com/api
+SUGILANON_SITE_URL=https://philwatch.com
 
 NGINX_PORT=80
 NGINX_SSL_PORT=443
@@ -158,8 +158,13 @@ If Sugilanon needs authenticated browser calls to the shared backend, include
 its exact origin in `ALLOWED_ORIGINS` as a comma-separated value:
 
 ```env
-ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://sugilanon.philwatch.com
+ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://philwatch.com
 ```
+
+Sugilanon runs on `philwatch.com` in production. Do not use
+`sugilanon.philwatch.com` for Sugilanon `SUGILANON_SITE_URL`,
+`SUGILANON_API_BASE_URL`, CORS origins, nginx hosts, or TLS certificate paths
+unless the hosting plan changes.
 
 Confirm the backend log directory matches the production Compose file:
 
@@ -211,14 +216,14 @@ The SSL nginx config expects both domains to have LetEncrypt files mounted from
 
 ```text
 /etc/letsencrypt/live/freshprice.philwatch.com/fullchain.pem
-/etc/letsencrypt/live/sugilanon.philwatch.com/fullchain.pem
+/etc/letsencrypt/live/philwatch.com/fullchain.pem
 ```
 
 If the Sugilanon certificate is missing, issue it before switching nginx to
 `nginx.prod.ssl.conf`:
 
 ```bash
-sudo certbot certonly --standalone -d sugilanon.philwatch.com
+sudo certbot certonly --standalone -d philwatch.com
 ```
 
 Port 80 must point to the VPS and be free while standalone certbot runs. If nginx
@@ -434,9 +439,9 @@ curl -I https://freshprice.philwatch.com
 Verify Sugilanon:
 
 ```bash
-curl -I https://sugilanon.philwatch.com
+curl -I https://philwatch.com
 curl --fail --silent \
-  https://sugilanon.philwatch.com/api/platform/db/health
+  https://philwatch.com/api/platform/db/health
 ```
 
 Smoke test the main workflows in a browser:
@@ -587,7 +592,7 @@ Do not add a trailing slash. Redeploy after changing `.env`.
 For Sugilanon browser requests, include both production origins:
 
 ```env
-ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://sugilanon.philwatch.com
+ALLOWED_ORIGINS=https://freshprice.philwatch.com,https://philwatch.com
 ```
 
 ### Sugilanon does not become healthy

@@ -140,14 +140,15 @@ PriceCheck's dockerized set-up for development
    For production, set the VPS values in `fpdocker/.env`:
    ```env
    SUGILANON_IMAGE_TAG=latest
-   SUGILANON_API_BASE_URL=https://sugilanon.philwatch.com/api
-   SUGILANON_SITE_URL=https://sugilanon.philwatch.com
+   SUGILANON_API_BASE_URL=https://philwatch.com/api
+   SUGILANON_SITE_URL=https://philwatch.com
    ```
 
-   The production nginx config routes `sugilanon.philwatch.com` to the
-   `sugilanon` service and proxies `sugilanon.philwatch.com/api/...` to the
+   Sugilanon runs on `philwatch.com` in production, not on
+   `sugilanon.philwatch.com`. The production nginx config routes `philwatch.com`
+   to the `sugilanon` service and proxies `philwatch.com/api/...` to the
    backend. Before enabling the SSL config, create a certificate for
-   `sugilanon.philwatch.com` under `/etc/letsencrypt/live/sugilanon.philwatch.com`.
+   `philwatch.com` under `/etc/letsencrypt/live/philwatch.com`.
 
    For production swarm deploy:
    ```sh

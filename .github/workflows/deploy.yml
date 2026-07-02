@@ -39,6 +39,7 @@ jobs:
         with:
           repository: jamesabilong/sugilanon
           token: ${{ secrets.GH_PAT }}
+          ref: ${{ github.event.client_payload.ref || 'main' }}
           path: sugilanon
 
       - name: Login to GHCR
