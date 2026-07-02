@@ -165,6 +165,11 @@ automatically when their deployment branches are pushed:
 - `platform-backend` `master` sends `backend-updated`.
 - `sugilanon` `main` or `master` sends `sugilanon-updated`.
 
+Backend-only deploys run migrations and update `freshprice_backend` directly
+when the backend service already exists. They do not redeploy the full stack, so
+they do not require unrelated images such as `ghcr.io/jamesabilong/sugilanon:latest`
+to be present.
+
 When `fpdocker` deployment files change, push `fpdocker` `master` first. The VPS
 deploy step runs `git pull --ff-only origin master` before applying the changed
 service, so the next app dispatch will use the latest Compose and Docker config.
