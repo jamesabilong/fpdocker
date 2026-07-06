@@ -35,7 +35,7 @@ services:
       restart_policy:
         condition: on-failure
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/platform/db/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/platform/db/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -105,6 +105,11 @@ services:
     image: ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}
     env_file:
       - .env
+    ports:
+      - target: 3000
+        published: ${SUGILANON_PORT:-3001}
+        protocol: tcp
+        mode: host
     networks:
       - node-network
     environment:

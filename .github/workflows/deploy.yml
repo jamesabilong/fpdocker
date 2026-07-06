@@ -126,7 +126,7 @@ jobs:
               DATABASE_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_HOST POSTGRES_PORT \
               JWT_SECRET ALLOWED_ORIGINS BACKEND_IMAGE_TAG FRONTEND_IMAGE_TAG SUGILANON_IMAGE_TAG \
               SUGILANON_API_BASE_URL SUGILANON_SITE_URL CONTENT_API_BASE_URL \
-              NGINX_PORT NGINX_SSL_PORT DB_POOL_MAX DB_POOL_MIN DB_SSL
+              SUGILANON_PORT NGINX_PORT NGINX_SSL_PORT DB_POOL_MAX DB_POOL_MIN DB_SSL
             do
               value="$(env_value "$key")"
               if [ -n "$value" ]; then
@@ -160,7 +160,7 @@ jobs:
                 npx sequelize-cli db:migrate
               docker service update \
                 --force \
-                --update-order stop-first \
+                --update-order start-first \
                 --image ghcr.io/jamesabilong/platform-backend:latest \
                 freshprice_backend
             fi

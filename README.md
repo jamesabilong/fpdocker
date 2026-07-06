@@ -140,6 +140,7 @@ PriceCheck's dockerized set-up for development
    For production, set the VPS values in `fpdocker/.env`:
    ```env
    SUGILANON_IMAGE_TAG=latest
+   SUGILANON_PORT=3001
    SUGILANON_API_BASE_URL=https://philwatch.com/api
    SUGILANON_SITE_URL=https://philwatch.com
    ```
@@ -147,7 +148,8 @@ PriceCheck's dockerized set-up for development
    Sugilanon runs on `philwatch.com` in production, not on
    `sugilanon.philwatch.com`. The production nginx config routes `philwatch.com`
    to the `sugilanon` service and proxies `philwatch.com/api/...` to the
-   backend. Before enabling the SSL config, create a certificate for
+   backend. When Caddy owns public ports on the VPS, point `philwatch.com` to
+   `127.0.0.1:3001`. Before enabling the SSL config, create a certificate for
    `philwatch.com` under `/etc/letsencrypt/live/philwatch.com`.
 
    For production swarm deploy:
@@ -170,7 +172,7 @@ when the backend service already exists. They do not redeploy the full stack, so
 they do not require unrelated images such as `ghcr.io/jamesabilong/sugilanon:latest`
 to be present.
 
-FreshPrice frontend and Sugilanon production healthchecks use `127.0.0.1`
+FreshPrice backend, frontend, and Sugilanon production healthchecks use `127.0.0.1`
 instead of `localhost` inside the container. Keep that behavior because the VPS
 Swarm tasks can serve traffic while failing the `localhost` probe.
 

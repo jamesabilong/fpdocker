@@ -137,6 +137,7 @@ SUGILANON_IMAGE_TAG=latest
 
 SUGILANON_API_BASE_URL=https://philwatch.com/api
 SUGILANON_SITE_URL=https://philwatch.com
+SUGILANON_PORT=3001
 
 NGINX_PORT=80
 NGINX_SSL_PORT=443
@@ -560,8 +561,12 @@ Verify the health endpoint from inside a backend container:
 
 ```bash
 BACKEND_CONTAINER="$(docker ps -q -f name=freshprice_backend | head -n 1)"
-docker exec "$BACKEND_CONTAINER" wget -qO- http://localhost:4000/api/platform/db/health
+docker exec "$BACKEND_CONTAINER" wget -qO- http://127.0.0.1:4000/api/platform/db/health
 ```
+
+The production backend service healthcheck also probes `127.0.0.1:4000`, not
+`localhost`, to avoid VPS Swarm tasks being stopped by a loopback resolution
+mismatch while the backend is otherwise serving traffic.
 
 ### Backend image is stale
 
