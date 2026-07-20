@@ -21,7 +21,7 @@ services:
       - /var/projects/freshprice/logs/backend:/app/logs
       - uploads-data:/app/uploads
     networks:
-      - node-network
+      node-network:
         aliases:
           - backend
     logging:
