@@ -162,6 +162,11 @@ jobs:
                 --force \
                 --update-order start-first \
                 --image ghcr.io/jamesabilong/platform-backend:latest \
+                --health-cmd "wget -qO- http://127.0.0.1:4000/api/platform/db/health >/dev/null || exit 1" \
+                --health-interval 15s \
+                --health-timeout 5s \
+                --health-retries 5 \
+                --health-start-period 90s \
                 freshprice_backend
             fi
 
