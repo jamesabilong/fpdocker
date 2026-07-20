@@ -147,9 +147,6 @@ jobs:
 
             if [ "${{ github.event.action }}" == "backend-updated" ]; then
               docker pull ghcr.io/jamesabilong/platform-backend:latest
-              if ! docker service inspect freshprice_backend >/dev/null 2>&1; then
-                docker stack deploy -c docker-compose.prod.yml freshprice
-              fi
               docker run --rm \
                 --env-file .env \
                 --network freshprice_node-network \
@@ -157,15 +154,11 @@ jobs:
                 -e UPLOAD_DIR=/app/uploads \
                 ghcr.io/jamesabilong/platform-backend:latest \
                 npx sequelize-cli db:migrate
+              docker stack deploy -c docker-compose.prod.yml freshprice
               docker service update \
                 --force \
                 --update-order start-first \
                 --image ghcr.io/jamesabilong/platform-backend:latest \
-                --health-cmd "wget -qO- http://127.0.0.1:4000/api/platform/db/health >/dev/null || exit 1" \
-                --health-interval 15s \
-                --health-timeout 5s \
-                --health-retries 5 \
-                --health-start-period 90s \
                 freshprice_backend
             fi
 
