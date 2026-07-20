@@ -150,7 +150,6 @@ jobs:
               if ! docker service inspect freshprice_backend >/dev/null 2>&1; then
                 docker stack deploy -c docker-compose.prod.yml freshprice
               fi
-              docker network update --attachable freshprice_node-network
               docker run --rm \
                 --env-file .env \
                 --network freshprice_node-network \
