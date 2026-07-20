@@ -22,6 +22,8 @@ services:
       - uploads-data:/app/uploads
     networks:
       - node-network
+        aliases:
+          - backend
     logging:
       driver: "json-file"
       options:
@@ -109,7 +111,7 @@ services:
       - target: 3000
         published: ${SUGILANON_PORT:-3001}
         protocol: tcp
-        mode: host
+        mode: ingress
     networks:
       - node-network
     environment:
@@ -126,7 +128,7 @@ services:
     deploy:
       replicas: 1
       update_config:
-        order: start-first
+        order: stop-first
         failure_action: rollback
       restart_policy:
         condition: on-failure
