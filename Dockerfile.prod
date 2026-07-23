@@ -27,7 +27,9 @@ CMD ["nginx", "-g", "daemon off;"]
 # --- BACKEND PRODUCTION IMAGE ---
 FROM node:20-alpine AS backend-prod
 WORKDIR /app
-COPY --chown=node:node --from=backend-build /app ./
+COPY --chown=node:node platform-backend/package*.json ./
+RUN npm ci --omit=dev
+COPY --chown=node:node --from=backend-build /app/src ./src
 RUN mkdir -p /app/logs /app/uploads && chown -R node:node /app/logs /app/uploads
 USER node
 EXPOSE 4000

@@ -132,7 +132,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - postgres-logs:/var/log/postgresql
     restart: "no"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost -p ${POSTGRES_PORT}"]
@@ -177,6 +176,4 @@ networks:
 
 volumes:
   postgres-data:
-  postgres-logs:
-  node_modules:
   n8n-data:
