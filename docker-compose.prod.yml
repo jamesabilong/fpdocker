@@ -123,7 +123,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      - CONTENT_API_BASE_URL=${CONTENT_API_BASE_URL:-http://backend:4000/api}
+      - CONTENT_API_BASE_URL=${CONTENT_API_BASE_URL:-http://freshprice_backend:4000/api}
       - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://philwatch.com/api}
       - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://philwatch.com}
     logging:
