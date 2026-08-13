@@ -286,11 +286,12 @@ source .env
 set +a
 ```
 
-If this is the first deployment and the Swarm network does not exist yet, create
-the stack services before running migrations:
+If this is the first deployment and the Swarm network or backend service does
+not exist yet, create the stack services before running migrations:
 
 ```bash
-if ! docker network inspect freshprice_node-network >/dev/null 2>&1; then
+if ! docker network inspect freshprice_node-network >/dev/null 2>&1 || \
+  ! docker service inspect freshprice_backend >/dev/null 2>&1; then
   docker stack deploy --with-registry-auth \
     -c docker-compose.prod.yml freshprice
 fi
@@ -306,13 +307,23 @@ docker run --rm \
   -e NODE_ENV=production \
   -e UPLOAD_DIR=/app/uploads \
   "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}" \
-  npx sequelize-cli db:migrate
+  ./node_modules/.bin/sequelize-cli db:migrate
 ```
 
 Already-applied migrations are skipped. If a migration fails, stop the backend
 release and fix the migration issue before updating the backend service.
 
-Deploy the Compose configuration and force services onto the intended images:
+For backend-only releases when `freshprice_backend` already exists, update only
+the backend service:
+
+```bash
+docker service update --force \
+  --image "ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest}" \
+  freshprice_backend
+```
+
+For a full-stack/manual release, deploy the Compose configuration and force
+services onto the intended images:
 
 ```bash
 docker stack deploy --with-registry-auth \
@@ -405,7 +416,7 @@ echo "$BACKEND_CONTAINER"
 Check migration status:
 
 ```bash
-docker exec "$BACKEND_CONTAINER" npx sequelize-cli db:migrate:status
+docker exec "$BACKEND_CONTAINER" ./node_modules/.bin/sequelize-cli db:migrate:status
 ```
 
 The latest backend release should show the current migrations as `up`, including:
@@ -538,7 +549,7 @@ docker run --rm \
   -e NODE_ENV=production \
   -e UPLOAD_DIR=/app/uploads \
   ghcr.io/jamesabilong/platform-backend:${BACKEND_IMAGE_TAG:-latest} \
-  npx sequelize-cli db:migrate
+  ./node_modules/.bin/sequelize-cli db:migrate
 ```
 
 ### Backend does not become healthy
@@ -660,7 +671,7 @@ file before running them.
 - Test restoring a backup at least monthly.
 - Use commit-specific image tags instead of `latest`.
 - Review `docker service logs` after every deployment.
-- Run `npx sequelize-cli db:migrate:status` after backend releases.
+- Run `./node_modules/.bin/sequelize-cli db:migrate:status` after backend releases.
 - Keep production deployment on `docker stack deploy` while `docker-compose.prod.yml`
   uses `overlay` networking.
 - Upgrade PostgreSQL major versions using a separate, tested maintenance plan.
