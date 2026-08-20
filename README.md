@@ -118,6 +118,51 @@ PriceCheck's dockerized set-up for development
    task cmd SERVICE=backend -- npm run test:unit
    ```
 
+### LAN-only HTTPS link for testers
+
+Install `mkcert` once on the Docker host, then start the opt-in LAN HTTPS
+gateway:
+
+```sh
+brew install mkcert
+mkcert -install
+task dev
+task share
+```
+
+Run `mkcert -install` yourself in an interactive terminal because macOS may ask
+for your administrator password. This password is never needed by Docker or
+stored by FreshPrice.
+
+Start the normal development stack with `task dev` before `task share`. A
+certificate refresh reloads only the nginx sharing gateway; it does not rerun
+database migrations. The gateway uses Docker's internal DNS so development
+container restarts do not leave stale frontend or backend addresses.
+The LAN gateway suppresses backend HSTS in development and returns
+`Strict-Transport-Security: max-age=0`, preventing browsers from forcing the
+HTTP Vite port (`localhost:5173`) to HTTPS.
+
+The command generates a certificate for the current LAN IP and prints a URL
+such as `https://192.168.1.20:8443`. The nginx gateway routes `/api` to the
+backend and all other traffic to the Vite frontend.
+
+Friends must be on the same network. Give them
+`.certs/freshprice-rootCA.crt` and have them trust that CA to remove the browser
+warning. The `.crt` file contains the same public X.509 certificate as
+`rootCA.pem`, using a device-friendly filename. Never share
+`.certs/freshprice-lan-key.pem` or mkcert's `rootCA-key.pem`. The `.certs`
+directory is ignored by Git.
+
+Stop LAN HTTPS after testing:
+
+```sh
+task share:stop
+```
+
+The development Compose file binds the direct frontend, backend, PostgreSQL,
+n8n, and Sugilanon ports to `127.0.0.1`. The `share` profile is the only service
+that listens on the LAN, and it publishes only HTTPS port `8443`.
+
    Sugilanon is available locally at:
    ```text
    http://localhost:3000

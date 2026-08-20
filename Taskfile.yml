@@ -77,6 +77,34 @@ tasks:
       - task: logs
         vars: { ENV_MODE: "dev" }
 
+  share:
+    desc: Start LAN-only HTTPS for FreshPrice testing
+    cmds:
+      - task: share:certs
+      - "{{.COMPOSE_CMD}} --profile share up -d --no-deps share-gateway"
+      - "{{.COMPOSE_CMD}} --profile share exec -T share-gateway nginx -s reload"
+      - echo "LAN HTTPS is ready. Use the URL printed by share:certs."
+
+  share:certs:
+    desc: Generate a trusted LAN certificate with mkcert
+    cmds:
+      - ./scripts/generate-lan-cert.sh
+
+  share:trust:
+    desc: Trust the mkcert CA on this computer (may prompt for your password)
+    cmds:
+      - mkcert -install
+
+  share:logs:
+    desc: Follow LAN HTTPS gateway logs
+    cmds:
+      - "{{.COMPOSE_CMD}} --profile share logs -f --tail=50 share-gateway"
+
+  share:stop:
+    desc: Stop the LAN HTTPS sharing gateway
+    cmds:
+      - "{{.COMPOSE_CMD}} --profile share stop share-gateway"
+
   backend:
     desc: Open a shell in the backend container
     cmds:

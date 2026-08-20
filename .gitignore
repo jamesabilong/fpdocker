@@ -9,5 +9,6 @@ docker-data/
 postgres-data/
 postgres-logs/
 node_modules/
+.certs/
 *.pid
 *.log

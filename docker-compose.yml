@@ -6,7 +6,7 @@ services:
       target: frontend
     container_name: fresh-price-front
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "127.0.0.1:${FRONTEND_PORT}:${FRONTEND_PORT}"
     volumes:
       - ../fresh-price-front:/app
       - /app/node_modules
@@ -26,6 +26,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  share-gateway:
+    image: nginx:1.27-alpine
+    profiles: ["share"]
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+    volumes:
+      - ./nginx.share.conf:/etc/nginx/nginx.conf:ro
+      - ./.certs:/etc/nginx/certs:ro
+    ports:
+      - "0.0.0.0:${SHARE_HTTPS_PORT:-8443}:8443"
+    networks:
+      - node-network
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   sugilanon:
     build:
       context: ..
@@ -33,7 +55,7 @@ services:
       target: sugilanon
     container_name: sugilanon
     ports:
-      - "${SUGILANON_PORT:-3000}:3000"
+      - "127.0.0.1:${SUGILANON_PORT:-3000}:3000"
     volumes:
       - ../sugilanon:/app
       - /app/node_modules
@@ -63,7 +85,7 @@ services:
         BACKEND_DIR_NAME: ${BACKEND_DIR_NAME:-platform-backend}
     container_name: platform-backend
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "127.0.0.1:${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
       - ../${BACKEND_DIR_NAME:-platform-backend}:/app
       - /app/node_modules
@@ -123,7 +145,7 @@ services:
     image: postgres:14
     container_name: fresh-price-postgres
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "127.0.0.1:${POSTGRES_PORT}:${POSTGRES_PORT}"
     networks:
       - node-network
     environment:
@@ -148,7 +170,7 @@ services:
     image: n8nio/n8n:latest
     container_name: freshprice-n8n
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
     networks:
       - node-network
     environment:
