@@ -118,6 +118,44 @@ PriceCheck's dockerized set-up for development
    task cmd SERVICE=backend -- npm run test:unit
    ```
 
+### Friendly local hostname
+
+Instead of `http://localhost:5173`, developers can use the local-only hostname
+`http://freshprice-local.com:5173`.
+
+On Windows, run from PowerShell:
+
+```powershell
+.\scripts\setup-local-domain.ps1
+```
+
+On macOS, run:
+
+```sh
+sh ./scripts/setup-local-domain.sh
+```
+
+The scripts request Administrator approval to update the operating system's
+hosts file. The Windows script also trusts `Downloads\freshprice-rootCA.crt`
+for the current user when that file exists.
+The CA is only needed for HTTPS certificates issued by that CA; ordinary Vite
+development at the URL above remains HTTP.
+
+For trusted HTTPS on macOS, install `mkcert`, install its local CA, start the
+development stack, and then start the HTTPS gateway:
+
+```sh
+brew install mkcert
+mkcert -install
+task dev
+task share
+```
+
+Open `https://freshprice-local.com:8443`. The generated server certificate
+includes `freshprice-local.com` and is stored with its private key under the
+gitignored `.certs` directory. Each developer should generate these files on
+their own computer rather than sharing private keys.
+
 ### LAN-only HTTPS link for testers
 
 Install `mkcert` once on the Docker host, then start the opt-in LAN HTTPS

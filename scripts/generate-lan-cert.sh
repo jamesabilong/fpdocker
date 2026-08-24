@@ -20,13 +20,14 @@ if [ -z "$freshprice_lan_ip" ]; then
 fi
 
 freshprice_hostname="$(hostname -s 2>/dev/null || hostname)"
+freshprice_local_domain="${LOCAL_DOMAIN:-freshprice-local.com}"
 freshprice_cert_dir="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/.certs"
 mkdir -p "$freshprice_cert_dir"
 
 mkcert \
     -cert-file "$freshprice_cert_dir/freshprice-lan.pem" \
     -key-file "$freshprice_cert_dir/freshprice-lan-key.pem" \
-    localhost 127.0.0.1 ::1 "$freshprice_lan_ip" "$freshprice_hostname.local"
+    localhost 127.0.0.1 ::1 "$freshprice_lan_ip" "$freshprice_hostname.local" "$freshprice_local_domain"
 
 cp "$(mkcert -CAROOT)/rootCA.pem" "$freshprice_cert_dir/rootCA.pem"
 cp "$freshprice_cert_dir/rootCA.pem" "$freshprice_cert_dir/freshprice-rootCA.crt"
@@ -35,6 +36,7 @@ chmod 600 "$freshprice_cert_dir/freshprice-lan-key.pem"
 
 echo "LAN HTTPS certificate generated for $freshprice_lan_ip."
 echo "FreshPrice URL: https://$freshprice_lan_ip:${SHARE_HTTPS_PORT:-8443}"
+echo "Local FreshPrice URL: https://$freshprice_local_domain:${SHARE_HTTPS_PORT:-8443}"
 echo "Tester CA certificate: $freshprice_cert_dir/freshprice-rootCA.crt"
 echo "If this CA is not trusted on the host yet, run: mkcert -install"
 echo "Share only freshprice-rootCA.crt with testers."
