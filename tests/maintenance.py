@@ -1,6 +1,7 @@
 """Run against disposable normal/maintenance proxies and a disconnected edge proxy."""
 import argparse
 import json
+import re
 from urllib.request import urlopen
 from urllib.error import HTTPError
 
@@ -20,6 +21,12 @@ def get(base, path):
 for path in ['/products/1/wiki', '/unknown-link']:
     status, headers, body = get(args.normal_url, path)
     assert status == 200 and 'id="root"' in body, (path, status)
+status, headers, body = get(args.normal_url, '/')
+asset = re.search(r'src="(/assets/[^\"]+\.js)"', body)
+assert asset, 'Production JavaScript asset not found in index.html'
+status, headers, body = get(args.normal_url, asset.group(1))
+assert status == 200
+assert headers.get('Cache-Control') == 'public, max-age=31536000, immutable'
 for path in ['/missing.png', '/assets/missing.js']:
     status, headers, body = get(args.normal_url, path)
     assert status == 404 and 'id="root"' not in body, (path, status)
