@@ -1,0 +1,19 @@
+# Import inside the existing freshprice.philwatch.com site only.
+# Install index.html at /srv/freshprice-maintenance/index.html first.
+# Keep the site's existing reverse_proxy directive and TLS settings.
+handle_errors 502 503 504 {
+    header Cache-Control "no-store"
+    header Retry-After "60"
+    @api path /api /api/*
+    handle @api {
+        header Content-Type "application/json"
+        respond `{"message":"Service temporarily unavailable"}` 503
+    }
+    handle {
+        root * /srv/freshprice-maintenance
+        rewrite * /index.html
+        file_server {
+            status 503
+        }
+    }
+}

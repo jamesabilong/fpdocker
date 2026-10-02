@@ -11,6 +11,6 @@
 - Backend-only dispatches should run migrations and update `freshprice_backend` directly once the backend service exists; do not redeploy the full stack because that can fail on unrelated missing images such as Sugilanon.
 - Production nginx proxy targets and server-side app API defaults must use the Swarm service name `http://freshprice_backend:4000`, not `http://backend:4000`. The `backend` alias is acceptable only for local Compose/dev-network settings.
 - Manual dispatches target `https://api.github.com/repos/jamesabilong/fpdocker/dispatches` and require a token with permission to dispatch workflows in `jamesabilong/fpdocker`.
-- The production frontend healthcheck should probe `http://127.0.0.1/`, not `http://localhost/`, because the VPS Swarm task previously served traffic but failed the `localhost` probe and was stopped.
+- The production frontend healthcheck should probe `http://127.0.0.1/healthz`, not `http://localhost/`, because the VPS Swarm task previously served traffic but failed the `localhost` probe and was stopped.
 - The production backend healthcheck should probe `http://127.0.0.1:4000/api/platform/db/health`, not `http://localhost:4000/api/platform/db/health`, for the same Swarm healthcheck behavior.
 - The production Sugilanon healthcheck should probe `http://127.0.0.1:3000/`, not `http://localhost:3000/`, for the same Swarm healthcheck behavior.
