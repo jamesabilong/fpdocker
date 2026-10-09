@@ -27,6 +27,16 @@ assert asset, 'Production JavaScript asset not found in index.html'
 status, headers, body = get(args.normal_url, asset.group(1))
 assert status == 200
 assert headers.get('Cache-Control') == 'public, max-age=31536000, immutable'
+for path, content_type, cache_control in [
+    ('/sw.js', 'application/javascript', 'no-store'),
+    ('/manifest.webmanifest', 'application/manifest+json', 'no-cache'),
+]:
+    status, headers, body = get(args.normal_url, path)
+    assert status == 200, (path, status)
+    assert content_type in headers.get('Content-Type', ''), (path, headers)
+    assert headers.get('Cache-Control') == cache_control, (path, headers)
+    assert headers.get('CDN-Cache-Control') == 'no-store', (path, headers)
+    assert headers.get('Cloudflare-CDN-Cache-Control') == 'no-store', (path, headers)
 for path in ['/missing.png', '/assets/missing.js']:
     status, headers, body = get(args.normal_url, path)
     assert status == 404 and 'id="root"' not in body, (path, status)
