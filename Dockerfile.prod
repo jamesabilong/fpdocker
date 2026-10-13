@@ -21,6 +21,9 @@ FROM nginx:alpine AS frontend-prod
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
 # Caddy terminates TLS on the VPS and proxies HTTP to this container.
 COPY fpdocker/nginx.prod.conf /etc/nginx/nginx.conf
+COPY fpdocker/maintenance/index.html /opt/freshprice-maintenance/index.html
+COPY fpdocker/maintenance/planned.html /opt/freshprice-maintenance/planned.html
+COPY --chmod=755 fpdocker/maintenance/40-maintenance.sh /docker-entrypoint.d/40-maintenance.sh
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
