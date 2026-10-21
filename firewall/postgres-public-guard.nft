@@ -1,0 +1,6 @@
+# Single-VPS public interface. Update this rule if the public interface changes.
+# Own table only; never flush Docker's tables or the complete ruleset.
+add table inet freshprice_pg_guard
+flush table inet freshprice_pg_guard
+add chain inet freshprice_pg_guard prerouting { type filter hook prerouting priority -310; policy accept; }
+add rule inet freshprice_pg_guard prerouting iifname "eth0" tcp dport 5432 counter drop comment "Block public PostgreSQL; retain overlay and loopback access"
