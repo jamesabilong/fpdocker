@@ -1,0 +1,14 @@
+[Unit]
+Description=Block public PostgreSQL before Docker port forwarding
+After=local-fs.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/freshprice/postgres-public-guard.nft
+ExecReload=/usr/sbin/nft -f /etc/freshprice/postgres-public-guard.nft
+RemainAfterExit=yes
+# Stopping this unit deliberately leaves the security rule installed.
+
+[Install]
+WantedBy=multi-user.target

@@ -37,6 +37,9 @@ for (const setting of ["true", "false", undefined]) {
       const frontend = rendered.match(/^  frontend:\r?\n([\s\S]*?)(?=^  \w+:|^networks:)/m)?.[1]
       assert.ok(frontend, "Frontend service missing from rendered stack")
       assert.match(frontend, new RegExp(`FRESHPRICE_MAINTENANCE: "${setting ?? "false"}"`))
+      const postgres = rendered.match(/^  postgres:\r?\n([\s\S]*?)(?=^  \w+:|^networks:)/m)?.[1]
+      assert.ok(postgres, "PostgreSQL service missing from rendered stack")
+      assert.doesNotMatch(postgres, /^    ports:/m, "Production PostgreSQL must not publish host ports")
     } finally {
       for (const file of [composePath, envPath]) {
         try { unlinkSync(file) } catch (error) { if (error.code !== "ENOENT") throw error }
