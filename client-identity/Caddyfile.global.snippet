@@ -1,0 +1,8 @@
+# Merge inside the existing GLOBAL servers block, not a site block.
+# Caddy >= 2.8. Populate the space-separated public CDN CIDRs from the official
+# Cloudflare list before validation. Never substitute private_ranges/0.0.0.0/0.
+servers {
+    trusted_proxies static {$FRESHPRICE_CDN_CIDRS}
+    trusted_proxies_strict
+    client_ip_headers X-Forwarded-For
+}

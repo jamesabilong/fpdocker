@@ -17,6 +17,10 @@ services:
       - DB_POOL_MAX=${DB_POOL_MAX:-20}
       - DB_POOL_MIN=${DB_POOL_MIN:-2}
       - DB_SSL=${DB_SSL:-false}
+      - CLIENT_IP_MODE=${CLIENT_IP_MODE:-socket}
+      - CLIENT_IP_PROXY_KEY=${CLIENT_IP_PROXY_KEY:-}
+      - CONTENT_INTERNAL_API_KEY=${CONTENT_INTERNAL_API_KEY:-}
+      - AUTH_TEST_EXEMPTIONS_ENABLED=${AUTH_TEST_EXEMPTIONS_ENABLED:-false}
     volumes:
       - /var/projects/freshprice/logs/backend:/app/logs
       - uploads-data:/app/uploads
@@ -111,8 +115,7 @@ services:
 
   sugilanon:
     image: ghcr.io/jamesabilong/sugilanon:${SUGILANON_IMAGE_TAG:-latest}
-    env_file:
-      - .env
+    # Pass only this service's configuration; never inherit the edge assertion key.
     ports:
       - target: 3000
         published: ${SUGILANON_PORT:-3001}
@@ -123,6 +126,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+      - CONTENT_INTERNAL_API_KEY=${CONTENT_INTERNAL_API_KEY:-}
       - CONTENT_API_BASE_URL=${CONTENT_API_BASE_URL:-http://freshprice_backend:4000/api}
       - NEXT_PUBLIC_API_BASE_URL=${SUGILANON_API_BASE_URL:-https://philwatch.com/api}
       - NEXT_PUBLIC_SITE_URL=${SUGILANON_SITE_URL:-https://philwatch.com}
