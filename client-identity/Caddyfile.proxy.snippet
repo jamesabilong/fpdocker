@@ -1,0 +1,9 @@
+# Merge inside EACH site's EXISTING reverse_proxy block (FreshPrice and PhilWatch).
+# Do not replace existing upstream, TLS, health/fallback or error-handling config.
+# The key is a protected operator-generated random 32-byte base64url secret shared
+# only by Caddy and backend CLIENT_IP_PROXY_KEY. Never expose it in frontend envs.
+header_up X-FreshPrice-Client-IP {client_ip}
+header_up X-FreshPrice-Proxy-Key {$FRESHPRICE_PROXY_KEY}
+
+# Public callers must never select the internal service principal.
+header_up -X-FreshPrice-Internal-Key
