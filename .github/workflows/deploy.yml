@@ -113,13 +113,23 @@ jobs:
             git pull --ff-only origin master
 
             env_value() {
+              # Keep edge/content credentials out of shared .env, which also
+              # feeds PostgreSQL. Only these four settings use this override.
+              env_file=.env
+              case "$1" in
+                CLIENT_IP_MODE|CLIENT_IP_PROXY_KEY|CONTENT_INTERNAL_API_KEY|AUTH_TEST_EXEMPTIONS_ENABLED)
+                  if [ -f /etc/freshprice/fp66-runtime.env ]; then
+                    env_file=/etc/freshprice/fp66-runtime.env
+                  fi
+                  ;;
+              esac
               awk -F= -v key="$1" '
                 $0 !~ /^[[:space:]]*#/ && $1 == key {
                   sub(/^[^=]*=/, "")
                   print
                   exit
                 }
-              ' .env
+              ' "$env_file"
             }
 
             for key in \
